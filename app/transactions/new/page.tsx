@@ -3,15 +3,21 @@
 import TransactionForm from '@/app/components/TransactionForm';
 import { createClient } from '@/lib/supabase/client';
 import type { Category } from '@/types/database';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
+import { Suspense } from 'react';
 
-export default function NewTransactionPage() {
+function NewTransactionContent() {
   const router = useRouter();
   const supabase = createClient();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+
+  // URL에서 date 파라미터 확인
+  const dateParam = searchParams.get('date');
+  const initialDate = dateParam ? new Date(dateParam) : undefined;
 
   // 카테고리 로드
   const { data: categories = [], isLoading } = useQuery({
@@ -73,7 +79,7 @@ export default function NewTransactionPage() {
       // 쿼리 무효화 및 이동
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       router.back(); 
-      router.refresh(); // 데이터 갱신 보장
+      router.refresh(); 
     },
     onError: (error) => {
       console.error('Error saving transaction:', error);
@@ -93,8 +99,21 @@ export default function NewTransactionPage() {
     <div className="min-h-dvh bg-background pb-8">
       <TransactionForm 
         categories={categories} 
-        onSubmit={async (data) => await mutation.mutateAsync(data)} 
+        onSubmit={async (data) => await mutation.mutateAsync(data)}
+        initialDate={initialDate}
       />
     </div>
+  );
+}
+
+export default function NewTransactionPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-dvh items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <NewTransactionContent />
+    </Suspense>
   );
 }
