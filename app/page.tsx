@@ -91,7 +91,7 @@ export default function HomePage() {
         <div className="flex items-center gap-3">
            <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 text-foreground/80 hover:bg-muted">
+                <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 text-foreground/80 hover:bg-muted" aria-label="메뉴 열기">
                    <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
