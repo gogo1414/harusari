@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, Trash2, Edit2 } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Edit2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -15,7 +15,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { createClient } from '@/lib/supabase/client';
 import type { Category } from '@/types/database';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // 자주 사용하는 이모지 목록
 const EMOJI_LIST = [
@@ -24,17 +26,11 @@ const EMOJI_LIST = [
   '🏋️', '🎬', '🥐', '🚗', '⛽', '🎉', '💡', '🔧', '🏦', '💳'
 ];
 
-// 더미 데이터 (임시)
-const dummyCategories: Category[] = [
-  { category_id: '1', name: '식비', icon: '🍔', type: 'expense', user_id: '1', created_at: '' },
-  { category_id: '2', name: '교통', icon: '🚌', type: 'expense', user_id: '1', created_at: '' },
-  { category_id: '3', name: '카페', icon: '☕', type: 'expense', user_id: '1', created_at: '' },
-  { category_id: '4', name: '월급', icon: '💼', type: 'income', user_id: '1', created_at: '' },
-];
-
 export default function CategoryManagementPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>(dummyCategories);
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -43,7 +39,70 @@ export default function CategoryManagementPage() {
   const [icon, setIcon] = useState('💰');
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
+  // 카테고리 조회
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      return data as Category[];
+    },
+  });
+
   const filteredCategories = categories.filter((c) => c.type === type);
+
+  // 추가 Mutation
+  const addMutation = useMutation({
+    mutationFn: async (newCategory: { name: string; icon: string; type: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase.from('categories').insert({
+        user_id: user.id,
+        name: newCategory.name,
+        icon: newCategory.icon,
+        type: newCategory.type as 'income' | 'expense',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setIsDialogOpen(false);
+    },
+  });
+
+  // 수정 Mutation
+  const updateMutation = useMutation({
+    mutationFn: async (category: { id: string; name: string; icon: string }) => {
+      const { error } = await supabase
+        .from('categories')
+        .update({ name: category.name, icon: category.icon })
+        .eq('category_id', category.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setIsDialogOpen(false);
+    },
+  });
+
+  // 삭제 Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('category_id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
 
   const openAddDialog = () => {
     setEditingCategory(null);
@@ -63,34 +122,19 @@ export default function CategoryManagementPage() {
     if (!name) return;
 
     if (editingCategory) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.category_id === editingCategory.category_id
-            ? { ...c, name, icon }
-            : c
-        )
-      );
+      updateMutation.mutate({ id: editingCategory.category_id, name, icon });
     } else {
-      setCategories((prev) => [
-        ...prev,
-        {
-          category_id: Math.random().toString(),
-          name,
-          icon,
-          type,
-          user_id: '1',
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      addMutation.mutate({ name, icon, type });
     }
-    setIsDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
     if (confirm('정말 삭제하시겠습니까?')) {
-      setCategories((prev) => prev.filter((c) => c.category_id !== id));
+      deleteMutation.mutate(id);
     }
   };
+
+  const isSaving = addMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="min-h-dvh bg-background p-4 pb-20">
@@ -112,49 +156,55 @@ export default function CategoryManagementPage() {
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 gap-3">
-        {filteredCategories.map((category) => (
-          <div
-            key={category.category_id}
-            className="group flex items-center justify-between rounded-2xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
-          >
-            <div className="flex items-center gap-4">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50 text-2xl transition-transform group-hover:scale-110 group-hover:bg-primary/10">
-                {category.icon}
-              </span>
-              <span className="font-semibold text-foreground/90">{category.name}</span>
+      {isLoading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {filteredCategories.map((category) => (
+            <div
+              key={category.category_id}
+              className="group flex items-center justify-between rounded-2xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
+            >
+              <div className="flex items-center gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50 text-2xl transition-transform group-hover:scale-110 group-hover:bg-primary/10">
+                  {category.icon}
+                </span>
+                <span className="font-semibold text-foreground/90">{category.name}</span>
+              </div>
+              <div className="flex gap-2 opacity-60 transition-opacity group-hover:opacity-100">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 hover:bg-muted"
+                  onClick={() => openEditDialog(category)}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  onClick={() => handleDelete(category.category_id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2 opacity-60 transition-opacity group-hover:opacity-100">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 hover:bg-muted"
-                onClick={() => openEditDialog(category)}
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                onClick={() => handleDelete(category.category_id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ))}
+          ))}
 
-        <button
-          onClick={openAddDialog}
-          className="group flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-muted-foreground/20 p-6 text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted-foreground/10 transition-colors group-hover:bg-primary/20">
-            <Plus className="h-5 w-5 group-hover:text-primary" />
-          </div>
-          <span className="font-medium group-hover:text-primary">새 카테고리 추가</span>
-        </button>
-      </div>
+          <button
+            onClick={openAddDialog}
+            className="group flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-muted-foreground/20 p-6 text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted-foreground/10 transition-colors group-hover:bg-primary/20">
+              <Plus className="h-5 w-5 group-hover:text-primary" />
+            </div>
+            <span className="font-medium group-hover:text-primary">새 카테고리 추가</span>
+          </button>
+        </div>
+      )}
 
       {/* 다이얼로그 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -211,10 +261,10 @@ export default function CategoryManagementPage() {
             </DialogClose>
             <Button 
               onClick={handleSave} 
-              disabled={!name}
+              disabled={!name || isSaving}
               className="h-12 w-full rounded-xl text-base font-semibold"
             >
-              저장하기
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : '저장하기'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -34,20 +34,22 @@ export const viewport: Viewport = {
   ],
 };
 
+import Providers from './providers';
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {/* 모바일 중앙 정렬 컨테이너 */}
-        <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-background shadow-sm">
-          {children}
-        </div>
+    <html lang="ko" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
+        <Providers>
+          {/* 모바일 중앙 정렬 컨테이너 */}
+          <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-background shadow-sm">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );
