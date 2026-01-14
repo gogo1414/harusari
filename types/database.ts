@@ -41,6 +41,7 @@ export interface Database {
           name: string;
           type: 'income' | 'expense';
           icon: string;
+          is_default: boolean;
           created_at: string;
         };
         Insert: {
@@ -49,12 +50,14 @@ export interface Database {
           name: string;
           type: 'income' | 'expense';
           icon: string;
+          is_default?: boolean;
           created_at?: string;
         };
         Update: {
           name?: string;
           type?: 'income' | 'expense';
           icon?: string;
+          is_default?: boolean;
         };
       };
       transactions: {
