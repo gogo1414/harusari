@@ -41,29 +41,31 @@ function NewTransactionContent() {
       let sourceFixedId = null;
 
       if (data.is_recurring) {
+        const fixedPayload = {
+          user_id: user.id,
+          amount: data.amount,
+          type: data.type,
+          category_id: data.category_id,
+          memo: data.memo,
+          day: data.date.getDate(),
+          end_type: data.end_type || 'never',
+          end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
+          is_active: true,
+          last_generated: formattedDate,
+        };
+
         const { data: fixedData, error: fixedError } = await supabase
           .from('fixed_transactions')
-          .insert({
-            user_id: user.id,
-            amount: data.amount,
-            type: data.type,
-            category_id: data.category_id,
-            memo: data.memo,
-            day: data.date.getDate(), // 매월 해당 일자
-            end_type: data.end_type || 'never',
-            end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
-            is_active: true,
-            last_generated: formattedDate, // 오늘 생성된 걸로 처리
-          })
+          .insert(fixedPayload as any)
           .select()
           .single();
 
         if (fixedError) throw fixedError;
-        sourceFixedId = fixedData.fixed_transaction_id;
+        sourceFixedId = (fixedData as any).fixed_transaction_id;
       }
 
       // 2. 실제 거래 내역 등록
-      const { error } = await supabase.from('transactions').insert({
+      const { error: transactionError } = await supabase.from('transactions').insert({
         user_id: user.id,
         amount: data.amount,
         type: data.type,
@@ -71,9 +73,9 @@ function NewTransactionContent() {
         date: formattedDate,
         memo: data.memo,
         source_fixed_id: sourceFixedId,
-      });
+      } as any);
 
-      if (error) throw error;
+      if (transactionError) throw transactionError;
     },
     onSuccess: () => {
       // 쿼리 무효화 및 이동

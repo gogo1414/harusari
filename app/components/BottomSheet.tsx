@@ -7,6 +7,7 @@ import { Edit2, Trash2, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Category } from '@/types/database';
+import { CategoryIcon } from './IconPicker';
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -60,21 +61,27 @@ export default function BottomSheet({
   };
 
   const handleAddTransaction = () => {
-     // 날짜 쿼리 파라미터와 함께 이동 (추후 구현: 폼에서 이 날짜를 초기값으로 사용)
      router.push(`/transactions/new?date=${dateStr}`);
   };
 
   return (
-    <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Drawer.Root 
+      open={isOpen} 
+      onOpenChange={(open) => !open && onClose()}
+      snapPoints={[0.5, 0.85]} // 50% 높이에서 시작, 당기면 85%까지 확장
+      activeSnapPoint={0.5}
+      fadeFromIndex={0}
+    >
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] flex flex-col rounded-t-[28px] bg-card outline-none shadow-2xl h-[85vh]">
+        {/* z-index를 50으로 높여서 헤더(z-10)를 확실히 덮도록 수정 */}
+        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity" />
+        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-[480px] flex flex-col rounded-t-[28px] bg-card outline-none shadow-2xl h-[85vh]">
           {/* 드래그 핸들 */}
-          <div className="flex justify-center py-4">
+          <div className="flex justify-center py-4 bg-card rounded-t-[28px]">
             <div className="h-1.5 w-12 rounded-full bg-muted/80" />
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto bg-card">
             {/* 헤더 */}
             <div className="px-6 pb-6 mt-2">
               <div className="flex items-center justify-between">
@@ -140,7 +147,7 @@ export default function BottomSheet({
                       className="group flex items-center gap-4 rounded-2xl border border-border/40 bg-card p-4 transition-all hover:bg-muted/30 hover:border-primary/20 hover:shadow-sm"
                     >
                       <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/60 text-2xl">
-                        {getCategoryIcon(transaction.category_id)}
+                        <CategoryIcon iconName={transaction.category_id ? getCategoryIcon(transaction.category_id) : 'money'} className="h-6 w-6 text-primary" />
                       </span>
 
                       <div className="flex-1 min-w-0">

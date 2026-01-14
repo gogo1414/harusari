@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Settings, LogOut, List, Repeat, ChevronRight, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useUserSettings } from '@/app/context/UserSettingsContext';
+import { Settings, LogOut, List, Repeat, Loader2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import Calendar from './components/Calendar';
@@ -18,24 +20,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { createClient } from '@/lib/supabase/client';
-import type { Transaction, Category } from '@/types/database';
+import type { Transaction } from '@/types/database';
 
 export default function HomePage() {
   const supabase = createClient();
+  const router = useRouter();
+  const { settings, categories } = useUserSettings();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
-
-  // 카테고리 데이터 조회
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('categories').select('*');
-      if (error) throw error;
-      return data as Category[];
-    },
-    staleTime: 1000 * 60 * 5, // 5분 캐시
-  });
 
   // 거래 내역 데이터 조회 (현재 월 기준)
   const { data: transactions = [], isLoading } = useQuery({
@@ -91,6 +84,9 @@ export default function HomePage() {
     }
   };
 
+  // Calendar에 settings.week_start_day 전달 (0 or 1 -> 'sunday' or 'monday')
+  const weekStartDay = settings.week_start_day === 1 ? 'monday' : 'sunday';
+
   return (
     <main className="flex min-h-dvh flex-col bg-background">
       {/* 헤더 */}
@@ -116,7 +112,33 @@ export default function HomePage() {
                   <List className="h-4 w-4" />
                   <span>카테고리 관리</span>
                 </div>
-                <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              </Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild className="rounded-lg p-2 focus:bg-muted cursor-pointer">
+              <Link href="/recurring" className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4" />
+                  <span>고정 지출/수입 관리</span>
+                </div>
+              </Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild className="rounded-lg p-2 focus:bg-muted cursor-pointer">
+              <Link href="/stats" className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📊</span>
+                  <span>지출 분석</span>
+                </div>
+              </Link>
+            </DropdownMenuItem>
+            
+             <DropdownMenuItem asChild className="rounded-lg p-2 focus:bg-muted cursor-pointer">
+              <Link href="/settings" className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⚙️</span>
+                  <span>환경 설정</span>
+                </div>
               </Link>
             </DropdownMenuItem>
             
@@ -149,6 +171,8 @@ export default function HomePage() {
               selectedDate={selectedDate || undefined}
               currentDate={currentMonth}
               onMonthChange={setCurrentMonth}
+              weekStartDay={weekStartDay}
+              cycleStartDay={settings.salary_cycle_date}
             />
           )}
         </div>
