@@ -72,9 +72,9 @@ export default function CategoryManagementPage() {
   // 수정 Mutation
   const updateMutation = useMutation({
     mutationFn: async (category: { id: string; name: string; icon: string }) => {
-      const { error } = await supabase
-        .from('categories')
-        .update({ name: category.name, icon: category.icon } as any)
+      const { error } = await (supabase
+        .from('categories') as any)
+        .update({ name: category.name, icon: category.icon })
         .eq('category_id', category.id);
       if (error) throw error;
     },

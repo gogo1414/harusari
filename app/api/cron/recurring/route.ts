@@ -68,9 +68,10 @@ export async function GET(request: Request) {
       }
 
       // 4. last_generated 업데이트
-      await supabase
-        .from('fixed_transactions')
-        .update({ last_generated: currentDateStr } as any) // 타입 회피
+      // 4. last_generated 업데이트
+      await (supabase
+        .from('fixed_transactions') as any)
+        .update({ last_generated: currentDateStr })
         .eq('fixed_transaction_id', item.fixed_transaction_id);
         
       processedItems.push(item.fixed_transaction_id);
