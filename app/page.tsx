@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Calendar from './components/Calendar';
 import BottomSheet from './components/BottomSheet';
 import FAB from './components/FAB';
+import { Button } from '@/components/ui/button';
 import type { Transaction, Category } from '@/types/database';
 
 // 임시 더미 데이터 (나중에 Supabase에서 가져옴)
@@ -75,10 +76,21 @@ export default function HomePage() {
 
   return (
     <main className="flex min-h-dvh flex-col bg-background">
-      {/* 헤더 */}
       <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
         <h1 className="text-xl font-bold text-primary">하루살이</h1>
-        {/* TODO: 설정 버튼 등 추가 */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          onClick={async () => {
+            const { createClient } = await import('@/lib/supabase/client');
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            window.location.href = '/login';
+          }}
+        >
+          로그아웃
+        </Button>
       </header>
 
       {/* 달력 */}
