@@ -18,13 +18,7 @@ import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import type { Category } from '@/types/database';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-// 자주 사용하는 이모지 목록
-const EMOJI_LIST = [
-  '🍔', '☕', '🍺', '🚌', '🚕', '🏠', '📱', '🛒', '👕', '🎮',
-  '💊', '📚', '💰', '💼', '💵', '🎁', '✈️', '🐶', '👶', '❤️',
-  '🏋️', '🎬', '🥐', '🚗', '⛽', '🎉', '💡', '🔧', '🏦', '💳'
-];
+import IconPicker, { CategoryIcon } from '@/app/components/IconPicker';
 
 export default function CategoryManagementPage() {
   const router = useRouter();
@@ -36,8 +30,8 @@ export default function CategoryManagementPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('💰');
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [icon, setIcon] = useState('money'); // 기본값 변경
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   // 카테고리 조회
   const { data: categories = [], isLoading } = useQuery({
@@ -66,7 +60,7 @@ export default function CategoryManagementPage() {
         name: newCategory.name,
         icon: newCategory.icon,
         type: newCategory.type as 'income' | 'expense',
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -80,7 +74,7 @@ export default function CategoryManagementPage() {
     mutationFn: async (category: { id: string; name: string; icon: string }) => {
       const { error } = await supabase
         .from('categories')
-        .update({ name: category.name, icon: category.icon })
+        .update({ name: category.name, icon: category.icon } as any)
         .eq('category_id', category.id);
       if (error) throw error;
     },
@@ -107,7 +101,7 @@ export default function CategoryManagementPage() {
   const openAddDialog = () => {
     setEditingCategory(null);
     setName('');
-    setIcon('💰');
+    setIcon('money');
     setIsDialogOpen(true);
   };
 
@@ -168,9 +162,12 @@ export default function CategoryManagementPage() {
               className="group flex items-center justify-between rounded-2xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
             >
               <div className="flex items-center gap-4">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50 text-2xl transition-transform group-hover:scale-110 group-hover:bg-primary/10">
-                  {category.icon}
-                </span>
+                <CategoryIcon 
+                  iconName={category.icon} 
+                  className="h-12 w-12 transition-transform group-hover:scale-105" 
+                  variant="squircle" 
+                  showBackground={true} 
+                />
                 <span className="font-semibold text-foreground/90">{category.name}</span>
               </div>
               <div className="flex gap-2 opacity-60 transition-opacity group-hover:opacity-100">
@@ -219,28 +216,23 @@ export default function CategoryManagementPage() {
             <div className="flex flex-col items-center gap-4">
               <Label className="text-muted-foreground">아이콘</Label>
               <button
-                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                className="flex h-20 w-20 items-center justify-center rounded-3xl bg-muted text-5xl shadow-sm ring-offset-background transition-all hover:scale-105 hover:bg-muted/80 focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                onClick={() => setIsIconPickerOpen(true)}
+                className="transition-transform hover:scale-105 focus:outline-none"
               >
-                {icon}
+                <CategoryIcon 
+                  iconName={icon} 
+                  className="h-24 w-24 shadow-sm" 
+                  variant="squircle" 
+                  showBackground={true} 
+                />
               </button>
               
-              {isEmojiPickerOpen && (
-                <div className="absolute top-24 z-50 grid w-64 grid-cols-6 gap-2 rounded-xl border bg-popover p-3 shadow-xl animate-in fade-in zoom-in-95">
-                  {EMOJI_LIST.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => {
-                        setIcon(emoji);
-                        setIsEmojiPickerOpen(false);
-                      }}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-lg hover:bg-muted hover:scale-110 transition-transform"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <IconPicker 
+                isOpen={isIconPickerOpen}
+                onClose={() => setIsIconPickerOpen(false)}
+                onSelect={(newIcon) => setIcon(newIcon)}
+                currentIcon={icon}
+              />
             </div>
 
             <div className="space-y-3">
