@@ -3,7 +3,7 @@
 import { Drawer } from 'vaul';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Transaction, Category } from '@/types/database';
 
@@ -17,7 +17,6 @@ interface BottomSheetProps {
   onDelete: (transactionId: string) => void;
 }
 
-// 금액 포맷팅 (콤마)
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('ko-KR').format(amount);
 }
@@ -33,11 +32,9 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   if (!selectedDate) return null;
 
-  // 해당 날짜의 거래 필터링
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const dayTransactions = transactions.filter((t) => t.date === dateStr);
 
-  // 수입/지출 합계
   const totals = dayTransactions.reduce(
     (acc, t) => {
       if (t.type === 'income') acc.income += t.amount;
@@ -47,7 +44,6 @@ export default function BottomSheet({
     { income: 0, expense: 0 }
   );
 
-  // 카테고리 아이콘 찾기
   const getCategoryIcon = (categoryId: string | null) => {
     if (!categoryId) return '💰';
     const category = categories.find((c) => c.category_id === categoryId);
@@ -63,106 +59,103 @@ export default function BottomSheet({
   return (
     <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 bg-black/40" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] rounded-t-2xl bg-card outline-none">
+        <Drawer.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
+        <Drawer.Content className="fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] flex flex-col rounded-t-[28px] bg-card outline-none shadow-2xl">
           {/* 드래그 핸들 */}
-          <div className="flex justify-center py-3">
-            <div className="h-1.5 w-12 rounded-full bg-muted" />
+          <div className="flex justify-center py-4">
+            <div className="h-1.5 w-12 rounded-full bg-muted/80" />
           </div>
 
-          {/* 헤더 */}
-          <div className="border-b border-border px-4 pb-3">
-            <Drawer.Title className="text-lg font-semibold">
-              {format(selectedDate, 'M월 d일 (EEEE)', { locale: ko })}
-            </Drawer.Title>
+          <div className="flex-1 overflow-y-auto">
+            {/* 헤더 */}
+            <div className="px-6 pb-6 mt-2">
+              <div className="flex items-center justify-between">
+                <Drawer.Title className="text-2xl font-bold tracking-tight">
+                  {format(selectedDate, 'M월 d일 EEEE', { locale: ko })}
+                </Drawer.Title>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={onClose}
+                  className="rounded-full hover:bg-muted"
+                >
+                  <X className="h-5 w-5 text-muted-foreground" />
+                </Button>
+              </div>
 
-            {/* 요약 */}
-            <div className="mt-2 flex gap-4 text-sm">
-              {totals.income > 0 && (
-                <span className="text-income">
-                  수입 +{formatCurrency(totals.income)}원
-                </span>
-              )}
-              {totals.expense > 0 && (
-                <span className="text-expense">
-                  지출 -{formatCurrency(totals.expense)}원
-                </span>
-              )}
-              {totals.income === 0 && totals.expense === 0 && (
-                <span className="text-muted-foreground">내역이 없습니다</span>
+              {/* 요약 카드 */}
+              <div className="mt-4 flex gap-4">
+                <div className="flex-1 rounded-2xl bg-muted/50 p-4">
+                  <span className="text-xs font-medium text-muted-foreground">수입</span>
+                  <p className={`mt-1 text-lg font-bold ${totals.income > 0 ? 'text-income' : 'text-muted-foreground'}`}>
+                    {totals.income > 0 ? `+${formatCurrency(totals.income)}` : '0'}
+                  </p>
+                </div>
+                <div className="flex-1 rounded-2xl bg-muted/50 p-4">
+                  <span className="text-xs font-medium text-muted-foreground">지출</span>
+                  <p className={`mt-1 text-lg font-bold ${totals.expense > 0 ? 'text-expense' : 'text-muted-foreground'}`}>
+                    {totals.expense > 0 ? `-${formatCurrency(totals.expense)}` : '0'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 거래 목록 */}
+            <div className="px-4 pb-10">
+              {dayTransactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <span className="text-4xl mb-4">📝</span>
+                  <p className="text-muted-foreground font-medium">작성된 내역이 없어요</p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {dayTransactions.map((transaction) => (
+                    <li
+                      key={transaction.transaction_id}
+                      className="group flex items-center gap-4 rounded-2xl border border-border/50 bg-card p-4 transition-all hover:bg-muted/30"
+                    >
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-2xl">
+                        {getCategoryIcon(transaction.category_id)}
+                      </span>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">
+                          {transaction.memo || getCategoryName(transaction.category_id)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {getCategoryName(transaction.category_id)}
+                          {/* 고정 지출 표시 등 추후 추가 */}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <span
+                          className={`block font-bold whitespace-nowrap ${
+                            transaction.type === 'income'
+                              ? 'text-income'
+                              : 'text-expense'
+                          }`}
+                        >
+                          {transaction.type === 'income' ? '+' : '-'}
+                          {formatCurrency(transaction.amount)}
+                        </span>
+                        
+                        {/* 액션 버튼들 (호버 시 표시하거나, 스와이프로 구현 가능) -> 일단 작게 표시 */}
+                        <div className="mt-1 flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => onEdit(transaction)} className="p-1 text-muted-foreground hover:text-foreground">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => onDelete(transaction.transaction_id)} className="p-1 text-muted-foreground hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>
-
-          {/* 거래 목록 */}
-          <div className="max-h-[50vh] overflow-y-auto px-4 py-2">
-            {dayTransactions.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground">
-                이 날짜에 등록된 내역이 없습니다
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {dayTransactions.map((transaction) => (
-                  <li
-                    key={transaction.transaction_id}
-                    className="flex items-center gap-3 py-3"
-                  >
-                    {/* 카테고리 아이콘 */}
-                    <span className="text-2xl">
-                      {getCategoryIcon(transaction.category_id)}
-                    </span>
-
-                    {/* 내용 */}
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {getCategoryName(transaction.category_id)}
-                      </p>
-                      {transaction.memo && (
-                        <p className="text-sm text-muted-foreground">
-                          {transaction.memo}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* 금액 */}
-                    <span
-                      className={`font-semibold ${
-                        transaction.type === 'income'
-                          ? 'text-income'
-                          : 'text-expense'
-                      }`}
-                    >
-                      {transaction.type === 'income' ? '+' : '-'}
-                      {formatCurrency(transaction.amount)}원
-                    </span>
-
-                    {/* 액션 버튼 */}
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => onEdit(transaction)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => onDelete(transaction.transaction_id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* 하단 여백 (Safe Area) */}
-          <div className="h-6" />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

@@ -90,7 +90,7 @@ export default function HomePage() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-muted">
               <Settings className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
-            </DropdownMenuTrigger>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 rounded-xl p-2 font-medium">
             <DropdownMenuLabel className="px-2 py-1.5 text-xs text-muted-foreground">

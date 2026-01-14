@@ -27,7 +27,6 @@ interface CalendarProps {
   selectedDate?: Date;
 }
 
-// 날짜별 거래 합계 계산
 function getDailySummary(transactions: Transaction[], date: Date) {
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayTransactions = transactions.filter((t) => t.date === dateStr);
@@ -43,7 +42,6 @@ function getDailySummary(transactions: Transaction[], date: Date) {
   return { income, expense };
 }
 
-// 금액 포맷팅 (1000 단위)
 function formatAmount(amount: number) {
   if (amount >= 10000) {
     return `${Math.floor(amount / 10000)}만`;
@@ -62,11 +60,8 @@ export default function Calendar({
   selectedDate,
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  // 주 시작 요일 설정
   const weekStartsOn = weekStartDay === 'sunday' ? 0 : 1;
 
-  // 달력에 표시할 날짜 배열 생성
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(monthStart);
@@ -84,7 +79,6 @@ export default function Calendar({
     return days;
   }, [currentMonth, weekStartsOn]);
 
-  // 요일 헤더
   const weekDays = useMemo(() => {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
     if (weekStartDay === 'monday') {
@@ -93,41 +87,38 @@ export default function Calendar({
     return days;
   }, [weekStartDay]);
 
-  // 월 이동
   const goToPreviousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const goToNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const goToToday = () => setCurrentMonth(new Date());
 
   return (
     <div className="flex flex-col">
-      {/* 헤더: 월 네비게이션 */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={goToPreviousMonth}>
-          <ChevronLeft className="h-5 w-5" />
+      <div className="flex items-center justify-between py-2 mb-2">
+        <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8 rounded-full hover:bg-muted">
+          <ChevronLeft className="h-5 w-5 text-muted-foreground" />
         </Button>
 
         <button
           onClick={goToToday}
-          className="text-lg font-semibold text-foreground hover:text-primary"
+          className="text-lg font-bold text-foreground hover:text-primary transition-colors"
         >
           {format(currentMonth, 'yyyy년 M월', { locale: ko })}
         </button>
 
-        <Button variant="ghost" size="icon" onClick={goToNextMonth}>
-          <ChevronRight className="h-5 w-5" />
+        <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-muted">
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
         </Button>
       </div>
 
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 border-b border-border">
+      <div className="grid grid-cols-7 mb-2">
         {weekDays.map((day, index) => (
           <div
             key={day}
-            className={`py-2 text-center text-sm font-medium ${
+            className={`py-2 text-center text-xs font-semibold ${
               index === 0 || (weekStartDay === 'monday' && index === 6)
-                ? 'text-expense'
+                ? 'text-expense/80'
                 : index === 6 || (weekStartDay === 'monday' && index === 5)
-                  ? 'text-primary'
+                  ? 'text-primary/80'
                   : 'text-muted-foreground'
             }`}
           >
@@ -136,8 +127,7 @@ export default function Calendar({
         ))}
       </div>
 
-      {/* 날짜 그리드 */}
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7 gap-y-1">
         {calendarDays.map((day) => {
           const { income, expense } = getDailySummary(transactions, day);
           const isCurrentMonth = isSameMonth(day, currentMonth);
@@ -145,40 +135,43 @@ export default function Calendar({
           const isTodayDate = isToday(day);
 
           return (
+            <div key={day.toISOString()} className="flex justify-center h-[76px]">
             <button
-              key={day.toISOString()}
               onClick={() => onDateSelect(day)}
-              className={`flex min-h-[72px] flex-col items-center border-b border-r border-border p-1 transition-colors hover:bg-accent ${
-                !isCurrentMonth ? 'bg-muted/30 opacity-40' : ''
-              } ${isSelected ? 'bg-primary/10' : ''}`}
+              className={`relative flex w-full flex-col items-center pt-2 transition-all rounded-xl ${
+                !isCurrentMonth ? 'opacity-30' : ''
+              } ${isSelected ? 'bg-primary/10 ring-1 ring-primary ring-inset' : 'hover:bg-muted/30'}`}
             >
-              {/* 날짜 */}
               <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-sm ${
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-sm transition-all ${
                   isTodayDate
-                    ? 'bg-primary font-bold text-primary-foreground'
+                    ? 'bg-primary font-bold text-primary-foreground shadow-sm'
                     : isSelected
-                      ? 'font-semibold text-primary'
-                      : 'text-foreground'
+                      ? 'font-bold text-primary'
+                      : 'text-foreground/80 font-medium'
                 }`}
               >
                 {format(day, 'd')}
               </span>
 
-              {/* 수입/지출 요약 */}
-              <div className="mt-1 flex flex-col items-center gap-0.5">
+              <div className="mt-1 flex flex-col items-center gap-0.5 w-full px-0.5">
                 {income > 0 && (
-                  <span className="text-[10px] font-medium text-income">
+                  <span className="truncate w-full text-center text-[10px] font-semibold text-income">
                     +{formatAmount(income)}
                   </span>
                 )}
                 {expense > 0 && (
-                  <span className="text-[10px] font-medium text-expense">
+                  <span className="truncate w-full text-center text-[10px] font-semibold text-expense">
                     -{formatAmount(expense)}
                   </span>
                 )}
+                {/* 내역 없을 때 점 표시 (선택사항) */}
+                {income === 0 && expense === 0 && (
+                   <span className="h-[2px]" />
+                )}
               </div>
             </button>
+            </div>
           );
         })}
       </div>
