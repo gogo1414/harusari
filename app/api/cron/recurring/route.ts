@@ -2,11 +2,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
-  // 보안 체크: Vercel Cron 헤더 확인 (선택 사항이지만 권장)
-  // const authHeader = request.headers.get('authorization');
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return new NextResponse('Unauthorized', { status: 401 });
-  // }
+  // 보안 체크: Vercel Cron 헤더 확인
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
 
   const supabase = createAdminClient();
   
