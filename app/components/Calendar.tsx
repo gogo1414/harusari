@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   format,
   startOfMonth,
@@ -25,6 +25,8 @@ interface CalendarProps {
   weekStartDay?: 'sunday' | 'monday';
   onDateSelect: (date: Date) => void;
   selectedDate?: Date;
+  currentDate: Date;
+  onMonthChange: (date: Date) => void;
 }
 
 function getDailySummary(transactions: Transaction[], date: Date) {
@@ -58,12 +60,13 @@ export default function Calendar({
   weekStartDay = 'sunday',
   onDateSelect,
   selectedDate,
+  currentDate,
+  onMonthChange,
 }: CalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
   const weekStartsOn = weekStartDay === 'sunday' ? 0 : 1;
 
   const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
+    const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(monthStart);
     const calendarStart = startOfWeek(monthStart, { weekStartsOn });
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn });
@@ -77,7 +80,7 @@ export default function Calendar({
     }
 
     return days;
-  }, [currentMonth, weekStartsOn]);
+  }, [currentDate, weekStartsOn]);
 
   const weekDays = useMemo(() => {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -87,9 +90,13 @@ export default function Calendar({
     return days;
   }, [weekStartDay]);
 
-  const goToPreviousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const goToNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-  const goToToday = () => setCurrentMonth(new Date());
+  const goToPreviousMonth = () => onMonthChange(subMonths(currentDate, 1));
+  const goToNextMonth = () => onMonthChange(addMonths(currentDate, 1));
+  const goToToday = () => {
+    const today = new Date();
+    onMonthChange(today);
+    onDateSelect(today);
+  };
 
   return (
     <div className="flex flex-col">
@@ -102,7 +109,7 @@ export default function Calendar({
           onClick={goToToday}
           className="text-lg font-bold text-foreground hover:text-primary transition-colors"
         >
-          {format(currentMonth, 'yyyy년 M월', { locale: ko })}
+          {format(currentDate, 'yyyy년 M월', { locale: ko })}
         </button>
 
         <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-muted">
@@ -130,7 +137,7 @@ export default function Calendar({
       <div className="grid grid-cols-7 gap-y-1">
         {calendarDays.map((day) => {
           const { income, expense } = getDailySummary(transactions, day);
-          const isCurrentMonth = isSameMonth(day, currentMonth);
+          const isCurrentMonth = isSameMonth(day, currentDate);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const isTodayDate = isToday(day);
 
