@@ -77,20 +77,20 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     if (userId && !isCategoriesLoading && categories.length === 0) {
       // 기본 카테고리 삽입 로직
       const defaultCategories = [
-        { name: '식비', type: 'expense', icon: 'utensils', is_default: true },
-        { name: '교통', type: 'expense', icon: 'bus', is_default: true },
+        { name: '식비', type: 'expense', icon: 'food', is_default: true },
+        { name: '교통', type: 'expense', icon: 'transport', is_default: true },
         { name: '주거', type: 'expense', icon: 'home', is_default: true },
-        { name: '통신', type: 'expense', icon: 'smartphone', is_default: true },
-        { name: '생활용품', type: 'expense', icon: 'shopping-cart', is_default: true },
-        { name: '의류', type: 'expense', icon: 'shirt', is_default: true },
-        { name: '카페', type: 'expense', icon: 'coffee', is_default: true },
-        { name: '여가', type: 'expense', icon: 'gamepad-2', is_default: true },
-        { name: '의료', type: 'expense', icon: 'stethoscope', is_default: true },
-        { name: '교육', type: 'expense', icon: 'book', is_default: true },
-        { name: '기타', type: 'expense', icon: 'more-horizontal', is_default: true },
-        { name: '급여', type: 'income', icon: 'briefcase', is_default: true },
-        { name: '부수입', type: 'income', icon: 'banknote', is_default: true },
-        { name: '투자', type: 'income', icon: 'trending-up', is_default: true },
+        { name: '통신', type: 'expense', icon: 'phone', is_default: true },
+        { name: '생활용품', type: 'expense', icon: 'shopping', is_default: true },
+        { name: '의류', type: 'expense', icon: 'clothes', is_default: true },
+        { name: '카페', type: 'expense', icon: 'cafe', is_default: true },
+        { name: '여가', type: 'expense', icon: 'game', is_default: true },
+        { name: '의료', type: 'expense', icon: 'medical', is_default: true },
+        { name: '교육', type: 'expense', icon: 'education', is_default: true },
+        { name: '기타', type: 'expense', icon: 'card', is_default: true },
+        { name: '급여', type: 'income', icon: 'salary', is_default: true },
+        { name: '부수입', type: 'income', icon: 'wallet', is_default: true },
+        { name: '투자', type: 'income', icon: 'investment', is_default: true },
         { name: '용돈', type: 'income', icon: 'gift', is_default: true },
       ];
 
