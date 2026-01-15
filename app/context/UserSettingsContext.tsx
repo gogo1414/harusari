@@ -3,7 +3,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Category } from '@/types/database';
+import type { Database } from '@/types/database';
+
+type UserSettingsRow = Database['public']['Tables']['user_settings']['Row'];
+type UserSettingsUpdate = Database['public']['Tables']['user_settings']['Update'];
+type Category = Database['public']['Tables']['categories']['Row'];
+type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 
 interface UserSettings {
   salary_cycle_date: number;
@@ -45,10 +50,12 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       const { data, error } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
       if (error && error.code !== 'PGRST116') throw error;
       
-      const safeData = data as any;
+      if (!data) return DEFAULT_SETTINGS;
+      const safeData = data as unknown as UserSettingsRow;
+
       return {
-        salary_cycle_date: safeData?.salary_cycle_date ?? 1,
-        week_start_day: safeData?.week_start === 'monday' ? 1 : 0, // DB has 'sunday'/'monday' text, app uses 0/1 number
+        salary_cycle_date: safeData.cycle_start_day ?? 1,
+        week_start_day: safeData.week_start === 'monday' ? 1 : 0, 
       } as UserSettings;
     },
     enabled: !!userId,
@@ -90,7 +97,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
       (async () => {
         const { error } = await supabase.from('categories').insert(
-          defaultCategories.map(c => ({ user_id: userId, ...c })) as any
+          defaultCategories.map(c => ({ user_id: userId, ...c })) as unknown as CategoryInsert[]
         );
         if (!error) {
           queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -105,13 +112,13 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     if (!userId) return;
     
     // UI 업데이트용 DB 페이로드 변환
-    const dbPayload: any = {};
+    const dbPayload: UserSettingsUpdate = {};
     if (newSettings.salary_cycle_date !== undefined) dbPayload.cycle_start_day = newSettings.salary_cycle_date;
     if (newSettings.week_start_day !== undefined) dbPayload.week_start = newSettings.week_start_day === 1 ? 'monday' : 'sunday';
 
     const { error } = await supabase
       .from('user_settings')
-      .upsert({ user_id: userId, ...dbPayload });
+      .upsert({ user_id: userId, ...dbPayload } as unknown as UserSettingsUpdate);
 
     if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ['user_settings'] });
