@@ -12,12 +12,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import type { Category } from '@/types/database';
-import { CategoryIcon } from './IconPicker';
+import IconPicker, { CategoryIcon } from './IconPicker';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
+import { Plus } from 'lucide-react';
 
 export interface TransactionFormData {
   type: 'income' | 'expense';
@@ -56,6 +67,45 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
       setDate(initialDate);
     }
   }, [initialDate]);
+
+  // 카테고리 추가 로직
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('money');
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+
+  const addCategoryMutation = useMutation({
+    mutationFn: async (newCategory: { name: string; icon: string; type: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // @ts-expect-error - Supabase insert 타입 에러 회피
+      const { error } = await supabase.from('categories').insert({
+        user_id: user.id,
+        name: newCategory.name,
+        icon: newCategory.icon,
+        type: newCategory.type,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setIsAddDialogOpen(false);
+      setNewCatName('');
+      setNewCatIcon('money');
+    },
+  });
+
+  const handleAddCategory = () => {
+    if (!newCatName) return;
+    addCategoryMutation.mutate({
+      name: newCatName,
+      icon: newCatIcon,
+      type, // 현재 선택된 탭(지출/수입)의 카테고리로 추가
+    });
+  };
 
   const filteredCategories = categories.filter((c) => c.type === type);
 
@@ -189,7 +239,22 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
 
         {/* 카테고리 선택 */}
         <div>
-           <label className="text-[13px] font-bold text-muted-foreground ml-1 mb-3 block">카테고리</label>
+           <div className="flex items-center justify-between mb-3 px-1">
+             <label className="text-[13px] font-bold text-muted-foreground">카테고리</label>
+             <Button
+               variant="ghost"
+               size="sm"
+               className="h-6 px-2 text-xs font-semibold text-primary hover:bg-primary/10 rounded-full"
+               onClick={() => {
+                  setNewCatName('');
+                  setNewCatIcon('money');
+                  setIsAddDialogOpen(true);
+               }}
+             >
+               <Plus className="mr-1 h-3 w-3" />
+               추가
+             </Button>
+           </div>
            <div className="grid grid-cols-4 gap-x-2 gap-y-4">
              {filteredCategories.map((cat) => (
                <button
@@ -352,6 +417,65 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
           )}
         </Button>
       </div>
+
+      {/* 카테고리 추가 다이얼로그 */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-bold">
+              새 {type === 'income' ? '수입' : '지출'} 카테고리
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-6 py-6">
+            <div className="flex flex-col items-center gap-4">
+              <Label className="text-muted-foreground text-xs">아이콘을 선택하세요</Label>
+              <button
+                onClick={() => setIsIconPickerOpen(true)}
+                className="transition-transform hover:scale-105 focus:outline-none"
+              >
+                <CategoryIcon 
+                  iconName={newCatIcon} 
+                  className="h-20 w-20 shadow-sm" 
+                  variant="squircle" 
+                  showBackground={true} 
+                />
+              </button>
+              
+              <IconPicker 
+                isOpen={isIconPickerOpen}
+                onClose={() => setIsIconPickerOpen(false)}
+                onSelect={(newIcon) => setNewCatIcon(newIcon)}
+                currentIcon={newCatIcon}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="new-cat-name" className="text-muted-foreground text-xs">이름</Label>
+              <Input
+                id="new-cat-name"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                placeholder="카테고리 이름"
+                className="h-12 rounded-xl text-lg font-medium bg-muted/30 border-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="h-12 w-full rounded-xl text-base border-none bg-muted/50 hover:bg-muted">취소</Button>
+            </DialogClose>
+            <Button 
+              onClick={handleAddCategory} 
+              disabled={!newCatName || addCategoryMutation.isPending}
+              className="h-12 w-full rounded-xl text-base font-bold shadow-lg shadow-primary/20"
+            >
+              {addCategoryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '추가하기'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
