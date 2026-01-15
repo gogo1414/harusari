@@ -59,6 +59,7 @@ export default function CategoryManagementPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // @ts-expect-error - Supabase insert 타입 불일치
       const { error } = await supabase.from('categories').insert({
         user_id: user.id,
         name: newCategory.name,

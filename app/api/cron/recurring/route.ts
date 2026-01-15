@@ -53,17 +53,20 @@ export async function GET(request: Request) {
       }
 
       // 3. 거래 생성
+      const insertPayload: TransactionInsert = {
+        user_id: item.user_id,
+        amount: item.amount,
+        type: item.type,
+        category_id: item.category_id,
+        date: currentDateStr,
+        memo: item.memo,
+        source_fixed_id: item.fixed_transaction_id,
+      };
+
       const { error: insertError } = await supabase
         .from('transactions')
-        .insert({
-          user_id: item.user_id,
-          amount: item.amount,
-          type: item.type,
-          category_id: item.category_id,
-          date: currentDateStr,
-          memo: item.memo, // 고정 지출 메모를 그대로 사용 (또는 "[고정] " 접두어 추가 가능)
-          source_fixed_id: item.fixed_transaction_id,
-        } as TransactionInsert);
+        // @ts-expect-error - Supabase insert 타입 불일치
+        .insert(insertPayload);
 
       if (insertError) {
         console.error(`Failed to insert transaction for fixed_id ${item.fixed_transaction_id}:`, insertError);

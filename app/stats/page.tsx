@@ -168,7 +168,7 @@ export default function StatsPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                       formatter={(value: number) => `${new Intl.NumberFormat('ko-KR').format(value || 0)}원`}
+                       formatter={(value: number | string | undefined) => `${new Intl.NumberFormat('ko-KR').format(Number(value) || 0)}원`}
                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.95)' }}
                        itemStyle={{ fontWeight: 'bold', color: '#191F28' }}
                        labelStyle={{ display: 'none' }}
@@ -241,7 +241,7 @@ export default function StatsPage() {
                   <Tooltip 
                     cursor={{ fill: '#F2F4F6', radius: 8 }}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    formatter={(value: number) => `${new Intl.NumberFormat('ko-KR').format(value || 0)}원`}
+                    formatter={(value: number | string | undefined) => `${new Intl.NumberFormat('ko-KR').format(Number(value) || 0)}원`}
                   />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                   <Bar dataKey="income" name="수입" fill="#3182F6" radius={[6, 6, 6, 6]} barSize={12} />
