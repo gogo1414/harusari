@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, PieChart as PieChartIcon, BarChart as BarChartIcon } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO, setDate, subDays, addMonths } from 'date-fns';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
-import { CategoryIcon } from '@/app/components/IconPicker';
 import type { Transaction, Category } from '@/types/database';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
+import StatSection from '@/app/components/StatSection';
+import TrendChart from '@/app/components/TrendChart';
+
+// Remove unused formatBarLabel since it's now part of TrendChart
 
 const INCOME_COLORS = [
   '#3182F6', // Blue (Toss)
@@ -29,111 +32,22 @@ const EXPENSE_COLORS = [
   '#64748B', // Slate
 ];
 
-interface StatData {
-  name: string;
-  amount: number;
-  icon: string;
-  color: string;
-  [key: string]: any;
-}
-
-function StatSection({ title, stats, total, type }: { title: string; stats: StatData[]; total: number; type: 'income' | 'expense' }) {
-  const isIncome = type === 'income';
-  
-  // 데이터가 없으면 렌더링하지 않음 (수입의 경우)
-  if (total === 0 && type === 'income') return null;
-
-  return (
-    <section className="rounded-[28px] bg-card p-6 shadow-sm ring-1 ring-black/5 dark:ring-white/5">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
-          <span className={`flex h-8 w-8 items-center justify-center rounded-full ${isIncome ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense'}`}>
-            <PieChartIcon className="h-4 w-4" />
-          </span>
-          {title}
-        </h2>
-      </div>
-
-      <div className="h-[280px] w-full relative">
-        {stats.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={stats}
-                cx="50%"
-                cy="50%"
-                innerRadius={65}
-                outerRadius={90}
-                paddingAngle={4}
-                dataKey="amount"
-                cornerRadius={6}
-                stroke="none"
-              >
-                {stats.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value: number | string | undefined) => `${new Intl.NumberFormat('ko-KR').format(Number(value) || 0)}원`}
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.95)' }}
-                itemStyle={{ fontWeight: 'bold', color: '#191F28' }}
-                labelStyle={{ display: 'none' }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center text-muted-foreground gap-2">
-            <span className="text-4xl opacity-20">📊</span>
-            <p>{isIncome ? '수입' : '지출'} 내역이 없습니다.</p>
-          </div>
-        )}
-        
-        {/* Center Text */}
-        {stats.length > 0 && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-            <span className="text-xs font-semibold text-muted-foreground block mb-1">총 {isIncome ? '수입' : '지출'}</span>
-            <p className="text-xl font-extrabold text-foreground">
-              {new Intl.NumberFormat('ko-KR').format(total)}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* 카테고리 리스트 */}
-      {stats.length > 0 && (
-        <div className="mt-8 space-y-4">
-          {stats.slice(0, 5).map((stat) => (
-            <div key={stat.name} className="flex items-center justify-between group">
-              <div className="flex items-center gap-3.5">
-                <div 
-                  className="flex h-10 w-10 items-center justify-center rounded-[14px] shadow-sm transition-transform group-hover:scale-110"
-                  style={{ backgroundColor: `${stat.color}15`, color: stat.color }}
-                >
-                  <CategoryIcon iconName={stat.icon} className="h-5 w-5" />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-[15px] font-bold text-foreground">{stat.name}</span>
-                    <span className="text-xs text-muted-foreground font-medium">
-                       {Math.round((stat.amount / total) * 100)}%
-                    </span>
-                </div>
-              </div>
-              <div className="text-[15px] font-bold tracking-tight">
-                {new Intl.NumberFormat('ko-KR').format(stat.amount)}원
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function StatsPage() {
   const router = useRouter();
   const supabase = createClient();
-  const [currentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
 
+  const { settings } = useUserSettings();
+  
+  // 날짜 계산 (지난달 ~ 이번달)
+  const startDate = startOfMonth(subMonths(currentDate, 1)); // 지난달 1일
+  const endDate = endOfMonth(currentDate); // 이번달 말일
+
+  const handleMonthChange = (delta: number) => {
+    setCurrentDate((prev) => addMonths(prev, delta));
+  };
+
+  // 카테고리 데이터 조회
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -141,65 +55,60 @@ export default function StatsPage() {
       if (error) throw error;
       return data as Category[];
     },
-    staleTime: Infinity,
   });
 
-  const { settings } = useUserSettings();
-  const salaryCycleDate = settings?.salary_cycle_date || 1;
-
-  // 1. 이번 달 내역 (전체 조회 - 수입/지출 분리 계산)
-  const { data: currentMonthTransactions = [], isLoading: isCurrentLoading } = useQuery({
-    queryKey: ['transactions', format(currentDate, 'yyyy-MM'), salaryCycleDate, 'all'],
+  // 통합 트랜잭션 데이터 조회 (지난달 ~ 이번달)
+  const { data: transactions = [], isLoading: isTransLoading } = useQuery({
+    queryKey: ['transactions', 'stats', format(startDate, 'yyyy-MM'), format(endDate, 'yyyy-MM')],
     queryFn: async () => {
-      let startDate, endDate;
-      if (salaryCycleDate === 1) {
-        startDate = format(startOfMonth(currentDate), 'yyyy-MM-dd');
-        endDate = format(endOfMonth(currentDate), 'yyyy-MM-dd');
-      } else {
-         const prevMonth = subMonths(currentDate, 1);
-         const start = setDate(prevMonth, salaryCycleDate);
-         const end = subDays(addMonths(start, 1), 1);
-         startDate = format(start, 'yyyy-MM-dd');
-         endDate = format(end, 'yyyy-MM-dd');
-      }
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError || !data.user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
+      const { data: trans, error } = await supabase
         .from('transactions')
         .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate);
-        
-      if (error) throw error;
-      return data as Transaction[];
-    },
-    enabled: !!settings,
-  });
-
-  const { data: trendTransactions = [], isLoading: isTrendLoading } = useQuery({
-    queryKey: ['transactions', 'trend', salaryCycleDate],
-    queryFn: async () => {
-      // 사이클 변동을 고려하여 앞뒤로 넉넉하게 조회 (6개월 전 ~ 다음 달)
-      const endDate = format(endOfMonth(addMonths(currentDate, 1)), 'yyyy-MM-dd');
-      const startDate = format(startOfMonth(subMonths(currentDate, 6)), 'yyyy-MM-dd');
-
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate);
+        .eq('user_id', data.user.id)
+        .gte('date', format(startDate, 'yyyy-MM-dd'))
+        .lte('date', format(endDate, 'yyyy-MM-dd'))
+        .order('date', { ascending: false });
 
       if (error) throw error;
-      return data as Transaction[];
+      return trans as Transaction[];
     },
   });
 
-  const { incomeStats, expenseStats, totalIncome, totalExpense } = useMemo(() => {
+  // 월별 추이 데이터 조회 (올해 전체)
+  const startOfYearDate = new Date(currentDate.getFullYear(), 0, 1);
+  const endOfYearDate = new Date(currentDate.getFullYear(), 11, 31);
+  
+  const { data: trendData = [], isLoading: isTrendLoading } = useQuery({
+    queryKey: ['transactions', 'trend', currentDate.getFullYear()],
+    queryFn: async () => {
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError || !data.user) throw new Error('Not authenticated');
+
+      const { data: trans, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .gte('date', format(subMonths(startOfYearDate, 6), 'yyyy-MM-dd'))
+        .lte('date', format(endOfYearDate, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+      return trans as Transaction[];
+    },
+  });
+
+  const isLoading = isTransLoading || isTrendLoading;
+
+  // 통계 계산 로직 분리
+  const calculateStats = (transData: Transaction[]) => {
     const iStats: Record<string, number> = {};
     const eStats: Record<string, number> = {};
     let tIncome = 0;
     let tExpense = 0;
 
-    currentMonthTransactions.forEach((t) => {
+    transData.forEach((t) => {
       const catId = t.category_id || 'unknown';
       if (t.type === 'income') {
         iStats[catId] = (iStats[catId] || 0) + t.amount;
@@ -210,7 +119,21 @@ export default function StatsPage() {
       }
     });
 
-    const processStats = (stats: Record<string, number>, colors: string[]) => Object.entries(stats)
+    return { iStats, eStats, tIncome, tExpense };
+  };
+
+  // 데이터 처리 - 문자열 비교로 변경하여 타임존 이슈 해결
+  const currentMonthStr = format(currentDate, 'yyyy-MM');
+  const lastMonthStr = format(subMonths(currentDate, 1), 'yyyy-MM');
+
+  const currentMonthTrans = transactions.filter(t => t.date.startsWith(currentMonthStr));
+  const lastMonthTrans = transactions.filter(t => t.date.startsWith(lastMonthStr));
+
+  const currentStats = calculateStats(currentMonthTrans);
+  const lastStats = calculateStats(lastMonthTrans);
+
+  // 차트 데이터 생성 함수
+  const processStats = (stats: Record<string, number>, colors: string[]) => Object.entries(stats)
       .map(([catId, amount]) => {
         const category = categories.find((c) => c.category_id === catId);
         return {
@@ -226,52 +149,32 @@ export default function StatsPage() {
         color: colors[index % colors.length],
       }));
 
+  const incomeStats = processStats(currentStats.iStats, INCOME_COLORS);
+  const expenseStats = processStats(currentStats.eStats, EXPENSE_COLORS);
+
+  const expenseDiff = currentStats.tExpense - lastStats.tExpense;
+  const incomeDiff = currentStats.tIncome - lastStats.tIncome;
+
+  // 수입/지출 추이 데이터 처리 (최근 6개월)
+  const monthlyTrendStats = Array.from({ length: 6 }, (_, i) => {
+    // 5개월 전부터 이번 달까지
+    const targetDate = subMonths(currentDate, 5 - i);
+    const monthStr = format(targetDate, 'yyyy-MM');
+    // 해당 월의 데이터 필터링
+    const monthTrans = trendData.filter(t => t.date.startsWith(monthStr));
+    const income = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const expense = monthTrans.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    
     return {
-      incomeStats: processStats(iStats, INCOME_COLORS),
-      expenseStats: processStats(eStats, EXPENSE_COLORS),
-      totalIncome: tIncome,
-      totalExpense: tExpense
+      name: format(targetDate, 'M월'),
+      income,
+      expense,
+      incomeLabel: income > 0 ? (income / 10000).toFixed(1) : '',
+      expenseLabel: expense > 0 ? (expense / 10000).toFixed(1) : '',
     };
-  }, [currentMonthTransactions, categories]);
+  });
 
-  const monthlyTrend = useMemo(() => {
-    const trend: Record<string, { income: number; expense: number }> = {};
-    // 최근 6개월 키 생성
-    for (let i = 5; i >= 0; i--) {
-      const monthStr = format(subMonths(currentDate, i), 'yyyy-MM');
-      trend[monthStr] = { income: 0, expense: 0 };
-    }
-
-    trendTransactions.forEach((t) => {
-      const tDate = parseISO(t.date);
-      let targetMonthStr = '';
-      
-      // 급여 사이클 적용하여 귀속 월 계산
-      if (salaryCycleDate === 1) {
-        targetMonthStr = format(tDate, 'yyyy-MM');
-      } else {
-        if (tDate.getDate() >= salaryCycleDate) {
-           targetMonthStr = format(addMonths(tDate, 1), 'yyyy-MM');
-        } else {
-           targetMonthStr = format(tDate, 'yyyy-MM');
-        }
-      }
-
-      if (trend[targetMonthStr]) {
-        if (t.type === 'income') trend[targetMonthStr].income += t.amount;
-        else trend[targetMonthStr].expense += t.amount;
-      }
-    });
-
-    return Object.entries(trend).map(([month, data]) => ({
-      name: format(parseISO(month + '-01'), 'M월'),
-      income: data.income,
-      expense: data.expense,
-    }));
-  }, [trendTransactions, currentDate, salaryCycleDate]);
-
-  const isLoading = isCurrentLoading || isTrendLoading;
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatBarLabel = (value: any) => {
     const num = Number(value);
     if (isNaN(num) || num === 0) return '';
@@ -281,76 +184,108 @@ export default function StatsPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-background p-4 pb-20 font-sans">
-      <div className="mb-6 flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-md z-10 py-2 -mx-4 px-4 border-b border-black/5 dark:border-white/5">
-         <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10">
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <h1 className="text-xl font-extrabold tracking-tight">지출 분석</h1>
-         </div>
+    <div className="flex flex-col min-h-dvh bg-background pb-24 font-sans">
+      {/* 헤더 */}
+      <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 backdrop-blur-sm px-4 py-3 border-b border-border/30">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
+          <ChevronLeft className="h-6 w-6" />
+        </Button>
+        <span className="text-lg font-bold">지출 분석</span>
+        <div className="w-10" />
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* 1. 지출 분포 (메인) */}
-          <StatSection 
-            title={`${format(currentDate, 'M월')} 지출 분포`}
-            stats={expenseStats} 
-            total={totalExpense} 
-            type="expense" 
-          />
-
-          {/* 2. 수입 분포 (서브: 수입이 있을 때만) */}
-          <StatSection 
-            title={`${format(currentDate, 'M월')} 수입 분포`}
-            stats={incomeStats} 
-            total={totalIncome} 
-            type="income" 
-          />
-
-          {/* 3. 최근 6개월 추이 (바 차트) */}
-          <section className="rounded-[28px] bg-card p-6 shadow-sm ring-1 ring-black/5 dark:ring-white/5">
-            <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-foreground">
-               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                 <BarChartIcon className="h-4 w-4" />
-               </span>
-              수입/지출 추이
-            </h2>
-            <div className="h-[220px] w-full pl-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyTrend} barGap={4} margin={{ top: 20 }}>
-                  <XAxis 
-                      dataKey="name" 
-                      fontSize={11} 
-                      tickLine={false} 
-                      axisLine={false} 
-                      tick={{ fill: '#8B95A1' }} 
-                      dy={10}
-                  />
-                  <YAxis hide />
-                  <Tooltip 
-                    cursor={{ fill: '#F2F4F6', radius: 8 }}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    formatter={(value: number | string | undefined) => `${new Intl.NumberFormat('ko-KR').format(Number(value) || 0)}원`}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="income" name="수입" fill="#3182F6" radius={[6, 6, 6, 6]} barSize={12}>
-                    <LabelList dataKey="income" position="top" formatter={formatBarLabel} fontSize={10} fill="#3182F6" dy={-4} />
-                  </Bar>
-                  <Bar dataKey="expense" name="지출" fill="#F04452" radius={[6, 6, 6, 6]} barSize={12}>
-                    <LabelList dataKey="expense" position="top" formatter={formatBarLabel} fontSize={10} fill="#F04452" dy={-4} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+      <div className="flex-1 p-5 space-y-8">
+        {/* 날짜 네비게이션 */}
+        <div className="flex justify-center mb-2">
+            <div className="flex items-center gap-4 bg-secondary/30 rounded-full px-5 py-2 hover:bg-secondary/40 transition-colors">
+              <Button variant="ghost" size="icon" onClick={() => handleMonthChange(-1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h2 className="text-lg font-bold tabular-nums tracking-wide">
+                {format(currentDate, 'yyyy년 M월', { locale: ko })}
+              </h2>
+              <Button variant="ghost" size="icon" onClick={() => handleMonthChange(1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-          </section>
         </div>
-      )}
+
+        {/* 메인 인사이트 섹션 (총 지출) */}
+        <div className="flex flex-col items-center text-center gap-2 py-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+           <span className="text-sm font-semibold text-muted-foreground tracking-tight">이번 달 총 지출</span>
+           <h1 className="text-5xl font-extrabold tracking-tighter tabular-nums text-foreground drop-shadow-sm">
+             {new Intl.NumberFormat('ko-KR').format(currentStats.tExpense)}
+             <span className="text-2xl font-bold ml-1 text-muted-foreground font-sans tracking-normal">원</span>
+           </h1>
+           
+           {/* 전월 대비 증감 배지 */}
+           <div className={`mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[15px] font-bold shadow-sm ring-1 ring-inset transition-all ${
+             expenseDiff > 0 
+               ? 'bg-red-500/10 text-red-600 ring-red-500/20' 
+               : expenseDiff < 0 
+                 ? 'bg-blue-500/10 text-blue-600 ring-blue-500/20' 
+                 : 'bg-secondary text-secondary-foreground ring-black/5'
+           }`}>
+             {expenseDiff > 0 ? '📈' : expenseDiff < 0 ? '📉' : '➖'}
+             {expenseDiff === 0 
+               ? '지난달과 지출이 같아요' 
+               : <span>지난달보다 <span className="tabular-nums">{new Intl.NumberFormat('ko-KR').format(Math.abs(expenseDiff))}원</span> {expenseDiff > 0 ? '더 썼어요' : '덜 썼어요'}</span>}
+           </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 fill-mode-backwards">
+            {/* 지출 카드 */}
+            <div className="bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">
+              <div className="flex items-center gap-3 mb-6">
+                 <div className="flex items-center justify-center h-10 w-10 rounded-full bg-destructive/10 text-destructive">
+                    <span className="text-lg">💸</span>
+                 </div>
+                 <h3 className="text-xl font-bold tracking-tight">지출 내역</h3>
+              </div>
+              <StatSection 
+                title="지출" 
+                stats={expenseStats} 
+                total={currentStats.tExpense} 
+                type="expense" 
+                diffAmount={expenseDiff} 
+              />
+            </div>
+
+            {/* 수입 카드 */}
+            <div className="bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">
+              <div className="flex items-center gap-3 mb-6">
+                 <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500/10 text-blue-500">
+                    <span className="text-lg">💰</span>
+                 </div>
+                 <h3 className="text-xl font-bold tracking-tight">수입 내역</h3>
+              </div>
+              <StatSection 
+                title="수입" 
+                stats={incomeStats} 
+                total={currentStats.tIncome} 
+                type="income" 
+                diffAmount={incomeDiff} 
+              />
+            </div>
+            
+            {/* 월별 추이 (BarChart) */}
+            <div className="col-span-1 md:col-span-2 bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">
+              <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <span className="text-lg">📅</span>
+                </span>
+                월별 수입/지출 추이
+              </h3>
+              <TrendChart data={monthlyTrendStats} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
