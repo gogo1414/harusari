@@ -158,7 +158,7 @@ export default function HomePage() {
       {/* 달력 섹션 */}
       <div className="flex-1 px-4 pt-4 pb-24">
         {/* Main Card */}
-        <div className="rounded-[32px] bg-card p-5 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 relative overflow-hidden">
+        <div className="rounded-[32px] bg-card p-5 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 relative">
           {isLoading ? (
              <div className="flex h-[360px] items-center justify-center">
                <Loader2 className="h-8 w-8 animate-spin text-primary" />

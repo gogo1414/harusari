@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import {
   format,
   startOfMonth,
-  endOfMonth,
   startOfWeek,
   endOfWeek,
   addDays,
@@ -16,9 +15,9 @@ import {
   setMonth,
   setYear,
   getYear,
-  getMonth,
   setDate,
   subDays,
+  startOfDay,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
@@ -50,16 +49,6 @@ function getDailySummary(transactions: Transaction[], date: Date) {
   return { income, expense };
 }
 
-function formatAmount(amount: number) {
-  if (amount >= 10000) {
-    return `${Math.floor(amount / 10000)}만`;
-  }
-  if (amount >= 1000) {
-    return `${Math.floor(amount / 1000)}천`;
-  }
-  return amount.toString();
-}
-
 export default function Calendar({
   transactions,
   cycleStartDay = 1,
@@ -74,30 +63,34 @@ export default function Calendar({
 
   const weekStartsOn = weekStartDay === 'sunday' ? 0 : 1;
 
+  // 급여 사이클 시작일 계산
+  const currentCycleStart = useMemo(() => {
+    const monthStart = startOfMonth(currentDate);
+    const startDay = cycleStartDay;
+
+    let cycleStart: Date;
+
+    // 급여일이 1일이 아니면 전달 급여일부터 시작
+    if (1 < startDay) {
+      cycleStart = setDate(subMonths(monthStart, 1), startDay);
+    } else {
+      cycleStart = setDate(monthStart, startDay);
+    }
+
+    return startOfDay(cycleStart);
+  }, [currentDate, cycleStartDay]);
+
+  // 급여 사이클 종료일 계산
+  const currentCycleEnd = useMemo(() => {
+    // 사이클 시작일로부터 1달 뒤 - 1일
+    const end = subDays(addMonths(currentCycleStart, 1), 1);
+    return startOfDay(end);
+  }, [currentCycleStart]);
+
+  // 달력 그리드를 급여 사이클 기준으로 생성
   const calendarDays = useMemo(() => {
-    // 1. 현재 날짜가 속한 사이클의 시작일 계산
-    let cycleStartDate = setYear(setMonth(currentDate, getMonth(currentDate)), getYear(currentDate));
-    
-    // 만약 현재 날짜의 '일'이 cycleStartDay보다 작다면, 이전 달의 사이클에 속함
-    // 예: cycleStartDay=25, currentDate=10월 5일 -> 9월 25일 시작 사이클
-    // 하지만 currentDate는 이미 '보여줄 달'의 1일로 들어온다고 가정하면 (Month Navigation에서 처리)
-    // 여기서는 '보여줄 달'의 사이클 시작일을 기준으로 해야 함.
-    
-    // currentDate가 '2026-12-01'처럼 월의 1일로 들어온다고 가정 (onMonthChange에서 그렇게 넘김)
-    // 사이클 시작일은 해당 월의 cycleStartDay
-    cycleStartDate = setYear(setMonth(cycleStartDate, getMonth(currentDate)), getYear(currentDate));
-    cycleStartDate = setDate(cycleStartDate, cycleStartDay);
-
-    // 만약 cycleStartDay가 1일이면 -> 12월 1일 ~ 12월 31일
-    // cycleStartDay가 25일이면 -> 12월 25일 ~ 1월 24일 (이걸 '12월'로 볼 것인지 '1월'로 볼 것인지 정의 필요)
-    // 통상적으로 "N월" 가계부는 "N월 급여일 ~ N+1월 급여일 전날"을 의미하는 경우가 많음.
-    // 여기서는 currentDate가 가리키는 달의 cycleStartDay를 시작으로 잡음.
-
-    const cycleEndDate = subDays(addMonths(cycleStartDate, 1), 1);
-
-    // 달력 그리드 표시를 위한 시작/끝 날짜 (주 단위 맞춤)
-    const calendarStart = startOfWeek(cycleStartDate, { weekStartsOn });
-    const calendarEnd = endOfWeek(cycleEndDate, { weekStartsOn });
+    const calendarStart = startOfWeek(currentCycleStart, { weekStartsOn });
+    const calendarEnd = endOfWeek(currentCycleEnd, { weekStartsOn });
 
     const days: Date[] = [];
     let day = calendarStart;
@@ -108,7 +101,7 @@ export default function Calendar({
     }
 
     return days;
-  }, [currentDate, weekStartsOn, cycleStartDay]);
+  }, [currentCycleStart, currentCycleEnd, weekStartsOn]);
 
   const weekDays = useMemo(() => {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -132,24 +125,6 @@ export default function Calendar({
     setPickerYear(getYear(currentDate));
     setIsPickerOpen(!isPickerOpen);
   };
-
-  // 현재 보여지는 사이클의 시작일과 종료일 계산 (UI 표시 및 활성화 로직용)
-  const currentCycleStart = useMemo(() => {
-    // 1. 현재 보여지는 달(currentDate의 Month)의 cycleStartDay를 구함
-    // 이 currentDate는 "보여지는 달"임. 
-    // 하지만 "12월"이라고 표시될 때 실제로는 "11월 25일 ~ 12월 24일"인지 "12월 25일 ~ 1월 24일"인지 앱의 로직에 따라 다름.
-    // 여기서는 cycleStartDay >= 20 이면 "전월 Start ~ 당월 Start-1"을 보통 씀 (카드값 등)
-    // 혹은 "당월 Start ~ 익월 Start-1"을 쓰기도 함.
-    // 기존 로직(위의 calendarDays)에서는 setMonth(currentDate, getMonth) -> 즉 당월 Start로 잡았음.
-    // 일관성을 위해 위에서 계산한 로직과 동일하게 가져감.
-    
-    let start = setYear(setMonth(currentDate, getMonth(currentDate)), getYear(currentDate));
-    return setDate(start, cycleStartDay);
-  }, [currentDate, cycleStartDay]);
-
-  const currentCycleEnd = useMemo(() => {
-    return subDays(addMonths(currentCycleStart, 1), 1);
-  }, [currentCycleStart]);
 
   return (
     <div className="flex flex-col relative min-h-[420px]">
@@ -179,9 +154,9 @@ export default function Calendar({
       </div>
 
       {isPickerOpen ? (
-        <div className="absolute top-[80px] left-0 right-0 bottom-0 bg-card z-10 flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-card z-10 flex flex-col animate-in fade-in zoom-in-95 duration-200 pb-4">
            {/* Year Picker Header */}
-           <div className="flex items-center justify-center gap-4 py-4 mb-2">
+           <div className="flex items-center justify-center gap-4 py-3 mb-1">
              <Button variant="ghost" size="icon" onClick={() => setPickerYear(pickerYear - 1)}>
                <ChevronLeft className="h-5 w-5" />
              </Button>
@@ -190,14 +165,14 @@ export default function Calendar({
                <ChevronRight className="h-5 w-5" />
              </Button>
            </div>
-           
+
            {/* Month Grid */}
-           <div className="grid grid-cols-3 gap-4 px-4">
+           <div className="grid grid-cols-3 gap-3 px-2">
              {Array.from({ length: 12 }, (_, i) => (
                <button
                  key={i}
                  onClick={() => handleMonthSelect(i)}
-                 className={`py-4 rounded-xl text-lg font-medium transition-colors ${
+                 className={`py-3 rounded-xl text-base font-medium transition-colors ${
                    getYear(currentDate) === pickerYear && isSameMonth(setMonth(new Date(), i), currentDate)
                      ? 'bg-primary text-primary-foreground font-bold shadow-md'
                      : 'hover:bg-muted bg-muted/30'

@@ -254,7 +254,7 @@ export default function CategoryManagementPage() {
 
           <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild>
-              <Button variant="outline" className="h-12 w-full rounded-xl text-base">취소</Button>
+              <Button type="button" variant="outline" className="h-12 w-full rounded-xl text-base">취소</Button>
             </DialogClose>
             <Button 
               onClick={handleSave} 
