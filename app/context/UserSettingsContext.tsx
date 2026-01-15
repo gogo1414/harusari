@@ -97,7 +97,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
       (async () => {
         const { error } = await supabase.from('categories').insert(
-          defaultCategories.map(c => ({ user_id: userId, ...c })) as unknown as CategoryInsert[]
+            // @ts-ignore 
+           defaultCategories.map(c => ({ user_id: userId, ...c }))
         );
         if (!error) {
           queryClient.invalidateQueries({ queryKey: ['categories'] });
