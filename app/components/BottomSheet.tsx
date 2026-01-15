@@ -105,11 +105,6 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   const router = useRouter();
 
-  // 날짜별 모드에서는 selectedDate 필수
-  if (viewMode === 'date' && !selectedDate) return null;
-  // 타입별 모드에서는 filterType 필수
-  if (viewMode === 'type' && !filterType) return null;
-
   const getCategoryIcon = (categoryId: string | null) => {
     if (!categoryId) return 'money';
     const category = categories.find((c) => c.category_id === categoryId);
@@ -142,7 +137,6 @@ export default function BottomSheet({
       grouped[t.date].push(t);
     });
 
-    // 날짜 내림차순 정렬을 위해 키 정렬
     return grouped;
   }, [transactions, filterType, viewMode]);
 
@@ -168,6 +162,10 @@ export default function BottomSheet({
     },
     { income: 0, expense: 0 }
   );
+
+  // 필수 조건 체크 (Hook 호출 후에 early return)
+  if (viewMode === 'date' && !selectedDate) return null;
+  if (viewMode === 'type' && !filterType) return null;
 
   const handleAddTransaction = () => {
     router.push(`/transactions/new${dateStr ? `?date=${dateStr}` : ''}`);
