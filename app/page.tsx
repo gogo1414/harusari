@@ -164,9 +164,26 @@ export default function HomePage() {
       start = startOfMonth(currentMonth);
       end = endOfMonth(currentMonth);
     } else {
-      const prevMonth = subMonths(currentMonth, 1);
-      start = setDate(prevMonth, cycleStartDay);
-      end = subDays(addMonths(start, 1), 1);
+      // 현재 날짜의 '일'이 급여일보다 크거나 같으면, 이번 달 급여일이 시작일 (다음 달 급여일 전날까지)
+      // 작으면, 지난 달 급여일이 시작일 (이번 달 급여일 전날까지)
+      // *주의: currentMonth는 사용자가 선택한 '월' 기준일 수 있음. 
+      // 달력 이동 시에는 보통 1일로 설정되므로, 이 로직이 '월 단위' 이동에는 '이전 달 급여일 ~ 이번 달 급여일 전' 패턴을 따르게 됨.
+      // 하지만 '오늘'이 포함된 초기 로딩 시점에는 정확한 사이클을 찾아야 함.
+      
+      const currentDay = currentMonth.getDate();
+      
+      // 단순히 월 이동(1일) 했을 때는 무조건 전월 급여일 시작으로 처리하는게 UI상 'N월' 보기 편함?
+      // 사용자 피드백: "Current Month" means the cycle that contains the current date.
+      // 그래서 날짜 비교 로직을 적용.
+      
+      if (currentDay >= cycleStartDay) {
+         start = setDate(currentMonth, cycleStartDay);
+         end = subDays(addMonths(start, 1), 1);
+      } else {
+         const prevMonth = subMonths(currentMonth, 1);
+         start = setDate(prevMonth, cycleStartDay);
+         end = subDays(addMonths(start, 1), 1);
+      }
     }
 
     const startStr = format(start, 'yyyy-MM-dd');

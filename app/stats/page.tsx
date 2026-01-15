@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, setDate, subDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,13 +38,61 @@ export default function StatsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const { settings } = useUserSettings();
-  
-  // 날짜 계산 (지난달 ~ 이번달)
-  const startDate = startOfMonth(subMonths(currentDate, 1)); // 지난달 1일
-  const endDate = endOfMonth(currentDate); // 이번달 말일
+  const cycleStartDay = settings.salary_cycle_date || 1;
+
+  // 사이클 범위 계산 함수
+  const getCycleRange = (baseDate: Date, cycleDay: number) => {
+    // baseDate가 포함된 사이클을 계산
+    // 만약 baseDate의 일자 >= cycleDay 이면: 이번 달 cycleDay ~ 다음 달 cycleDay - 1
+    // 만약 baseDate의 일자 < cycleDay 이면: 지난 달 cycleDay ~ 이번 달 cycleDay - 1
+    
+    // 하지만 '월별 통계' 관점에서는, "1월"을 선택했을 때 "1월에 끝나는 사이클"을 보여주는 것이 일반적임.
+    // 즉, salaryDay가 25일일 때, 1월 10일이든 1월 30일이든 "1월" 통계는 (12.25 ~ 1.24)를 의미하는 경우가 많음 (카드 대금처럼).
+    // 혹은 "1월"이 (1.25 ~ 2.24)를 의미할 수도 있음.
+    
+    // app/page.tsx와 동일한 로직(현재 날짜 포함 사이클)을 적용하면:
+    // 네비게이션으로 '2026년 1월'을 보고 있다면, currentDate는 '2026-01-01' (혹은 변경된 날짜)
+    // 1일 < 25일 이므로 -> 12.25 ~ 1.24 (직전 사이클)
+    // 만약 1월 26일로 설정되면 -> 1.25 ~ 2.24 (다음 사이클)
+    
+    // 여기서는 "선택된 월"의 의미를 "그 월에 종료되는 사이클" 혹은 "그 월의 대부분을 포함하는 사이클"로 정의하는게 UI상 자연스러움.
+    // 기존 로직(subMonths 1, etc)을 대체하기 위해, 
+    // "이번 달" = currentDate가 속한 사이클.
+    // "지난 달" = "이번 달"의 전 사이클.
+    
+    let start, end;
+    if (cycleDay === 1) {
+      start = startOfMonth(baseDate);
+      end = endOfMonth(baseDate);
+    } else {
+      const currentDay = baseDate.getDate();
+      if (currentDay >= cycleDay) {
+         start = setDate(baseDate, cycleDay);
+         end = subDays(addMonths(start, 1), 1);
+      } else {
+         const prevMonth = subMonths(baseDate, 1);
+         start = setDate(prevMonth, cycleDay);
+         end = subDays(addMonths(start, 1), 1);
+      }
+    }
+    return { start, end };
+  };
+
+  const currentCycle = getCycleRange(currentDate, cycleStartDay);
+  const lastCycle = getCycleRange(subMonths(currentCycle.start, 1), cycleStartDay);
+
+  // 통합 트랜잭션 데이터 조회 (지난 사이클 ~ 이번 사이클 커버)
+  // 여유 있게 전전달 부터 다음달까지 조회
+  const fetchStart = format(subMonths(lastCycle.start, 1), 'yyyy-MM-dd');
+  const fetchEnd = format(addMonths(currentCycle.end, 1), 'yyyy-MM-dd');
 
   const handleMonthChange = (delta: number) => {
-    setCurrentDate((prev) => addMonths(prev, delta));
+    // 사이클 단위로 이동. 
+    // 현재 사이클의 시작일에서 delta 개월만큼 이동한 날짜를 기준으로 다시 사이클 계산
+    const newBaseDate = addMonths(currentCycle.start, delta);
+    // 날짜가 cycleDay보다 작아지지 않게 조정 (예: 1일 -> 25일로 이동 시 꼬임 방지)
+    // 애초에 사이클 시작일(항상 cycleDay)을 기준으로 이동하면 안전함.
+    setCurrentDate(newBaseDate);
   };
 
   // 카테고리 데이터 조회
@@ -57,9 +105,8 @@ export default function StatsPage() {
     },
   });
 
-  // 통합 트랜잭션 데이터 조회 (지난달 ~ 이번달)
   const { data: transactions = [], isLoading: isTransLoading } = useQuery({
-    queryKey: ['transactions', 'stats', format(startDate, 'yyyy-MM'), format(endDate, 'yyyy-MM')],
+    queryKey: ['transactions', 'stats', fetchStart, fetchEnd],
     queryFn: async () => {
       const { data, error: userError } = await supabase.auth.getUser();
       if (userError || !data.user) throw new Error('Not authenticated');
@@ -68,8 +115,8 @@ export default function StatsPage() {
         .from('transactions')
         .select('*')
         .eq('user_id', data.user.id)
-        .gte('date', format(startDate, 'yyyy-MM-dd'))
-        .lte('date', format(endDate, 'yyyy-MM-dd'))
+        .gte('date', fetchStart)
+        .lte('date', fetchEnd)
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -77,12 +124,13 @@ export default function StatsPage() {
     },
   });
 
-  // 월별 추이 데이터 조회 (올해 전체)
-  const startOfYearDate = new Date(currentDate.getFullYear(), 0, 1);
-  const endOfYearDate = new Date(currentDate.getFullYear(), 11, 31);
+  // 월별 추이 데이터 조회 (최근 6개월 + 여유분)
+  // 정확한 사이클 계산을 위해 넉넉히 8개월 전부터 조회
+  const trendStart = format(subMonths(currentDate, 8), 'yyyy-MM-dd');
+  const trendEnd = format(addMonths(currentDate, 2), 'yyyy-MM-dd');
   
   const { data: trendData = [], isLoading: isTrendLoading } = useQuery({
-    queryKey: ['transactions', 'trend', currentDate.getFullYear()],
+    queryKey: ['transactions', 'trend', currentDate.getFullYear(), cycleStartDay], // cycleStartDay 변경 시 재조회
     queryFn: async () => {
       const { data, error: userError } = await supabase.auth.getUser();
       if (userError || !data.user) throw new Error('Not authenticated');
@@ -91,8 +139,8 @@ export default function StatsPage() {
         .from('transactions')
         .select('*')
         .eq('user_id', data.user.id)
-        .gte('date', format(subMonths(startOfYearDate, 6), 'yyyy-MM-dd'))
-        .lte('date', format(endOfYearDate, 'yyyy-MM-dd'));
+        .gte('date', trendStart)
+        .lte('date', trendEnd);
 
       if (error) throw error;
       return trans as Transaction[];
@@ -122,12 +170,15 @@ export default function StatsPage() {
     return { iStats, eStats, tIncome, tExpense };
   };
 
-  // 데이터 처리 - 문자열 비교로 변경하여 타임존 이슈 해결
-  const currentMonthStr = format(currentDate, 'yyyy-MM');
-  const lastMonthStr = format(subMonths(currentDate, 1), 'yyyy-MM');
+  // 데이터 처리 - 날짜 범위 기반 필터링
+  const filterByRange = (data: Transaction[], start: Date, end: Date) => {
+    const startStr = format(start, 'yyyy-MM-dd');
+    const endStr = format(end, 'yyyy-MM-dd');
+    return data.filter(t => t.date >= startStr && t.date <= endStr);
+  };
 
-  const currentMonthTrans = transactions.filter(t => t.date.startsWith(currentMonthStr));
-  const lastMonthTrans = transactions.filter(t => t.date.startsWith(lastMonthStr));
+  const currentMonthTrans = filterByRange(transactions, currentCycle.start, currentCycle.end);
+  const lastMonthTrans = filterByRange(transactions, lastCycle.start, lastCycle.end);
 
   const currentStats = calculateStats(currentMonthTrans);
   const lastStats = calculateStats(lastMonthTrans);
@@ -157,16 +208,25 @@ export default function StatsPage() {
 
   // 수입/지출 추이 데이터 처리 (최근 6개월)
   const monthlyTrendStats = Array.from({ length: 6 }, (_, i) => {
-    // 5개월 전부터 이번 달까지
-    const targetDate = subMonths(currentDate, 5 - i);
-    const monthStr = format(targetDate, 'yyyy-MM');
-    // 해당 월의 데이터 필터링
-    const monthTrans = trendData.filter(t => t.date.startsWith(monthStr));
+    // 5개월 전 사이클 ~ 이번 사이클 (0)
+    // currentCycle.start 기준으로 i개월 전 사이클 계산
+    // *주의: 단순히 subMonths만 하면 날짜가 밀릴 수 있음.
+    // getCycleRange를 사용하여 정확한 사이클 다시 계산
+    
+    // 기준 날짜: 현재 사이클 시작일에서 (5-i)개월 뺌
+    const targetBaseDate = subMonths(currentCycle.start, 5 - i);
+    const { start: cycleStart, end: cycleEnd } = getCycleRange(targetBaseDate, cycleStartDay);
+    
+    // 라벨: 사이클의 종료일이 속한 '월'을 기준으로 표시 (예: 12.25~1.24 -> 1월)
+    // 혹은 시작일 기준? 보통 종료일 기준이 '귀속월'로 인식됨.
+    const labelDate = cycleEnd; 
+    
+    const monthTrans = filterByRange(trendData, cycleStart, cycleEnd);
     const income = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expense = monthTrans.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
     return {
-      name: format(targetDate, 'M월'),
+      name: format(labelDate, 'M월'),
       income,
       expense,
       incomeLabel: income > 0 ? (income / 10000).toFixed(1) : '',
@@ -196,19 +256,22 @@ export default function StatsPage() {
 
       <div className="flex-1 p-5 space-y-8">
         {/* 날짜 네비게이션 */}
-        <div className="flex justify-center mb-2">
-            <div className="flex items-center gap-4 bg-secondary/30 rounded-full px-5 py-2 hover:bg-secondary/40 transition-colors">
-              <Button variant="ghost" size="icon" onClick={() => handleMonthChange(-1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <h2 className="text-lg font-bold tabular-nums tracking-wide">
-                {format(currentDate, 'yyyy년 M월', { locale: ko })}
-              </h2>
-              <Button variant="ghost" size="icon" onClick={() => handleMonthChange(1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-4 bg-secondary/30 rounded-full px-5 py-2 hover:bg-secondary/40 transition-colors">
+                <Button variant="ghost" size="icon" onClick={() => handleMonthChange(-1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="text-lg font-bold tabular-nums tracking-wide">
+                  {format(currentCycle.end, 'yyyy년 M월', { locale: ko })}
+                </h2>
+                <Button variant="ghost" size="icon" onClick={() => handleMonthChange(1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">
+                ({format(currentCycle.start, 'M.d')} ~ {format(currentCycle.end, 'M.d')})
+              </p>
             </div>
-        </div>
 
         {/* 메인 인사이트 섹션 (총 지출) */}
         <div className="flex flex-col items-center text-center gap-2 py-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
