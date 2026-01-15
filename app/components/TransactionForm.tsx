@@ -98,7 +98,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
   return (
     <div className="flex flex-col min-h-dvh bg-background">
       {/* 헤더 */}
-      <div className="sticky top-0 z-10 flex items-center justify-between bg-transparent px-4 py-3">
+      <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 backdrop-blur-sm px-4 py-3 border-b border-border/30">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
@@ -238,11 +238,21 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
         </div>
 
         {/* 고정 지출 설정 */}
-        <div className="rounded-3xl bg-muted/30 p-5 space-y-4">
+        <div className={cn(
+          "rounded-2xl p-5 space-y-4 transition-all duration-300 bg-card shadow-md",
+          isRecurring 
+            ? "ring-2 ring-primary shadow-lg shadow-primary/20" 
+            : "ring-1 ring-border/80"
+        )}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white dark:bg-card shadow-sm text-primary">
-                <RepeatIcon className="h-5 w-5" />
+              <div className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300",
+                isRecurring 
+                  ? "bg-primary text-white shadow-lg shadow-primary/30" 
+                  : "bg-secondary text-primary"
+              )}>
+                <RepeatIcon className="h-5 w-5" strokeWidth={2.5} />
               </div>
               <div className="flex flex-col">
                 <Label htmlFor="recurring" className="text-base font-bold cursor-pointer">반복 설정</Label>
@@ -253,6 +263,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
               id="recurring"
               checked={isRecurring}
               onCheckedChange={setIsRecurring}
+              className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary scale-110"
             />
           </div>
 
