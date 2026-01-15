@@ -97,13 +97,15 @@ export default function RecurringPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-background p-4 pb-20">
-      <div className="mb-6 flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2">
+    <div className="min-h-dvh bg-background pb-20">
+      <div className="sticky top-0 z-10 flex items-center gap-2 bg-background/95 backdrop-blur-sm px-4 py-3 border-b border-border/30">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <h1 className="text-xl font-bold">고정 지출/수입 관리</h1>
       </div>
+
+      <div className="p-4">
 
       {isLoading ? (
         <div className="flex justify-center py-10">
@@ -142,11 +144,13 @@ export default function RecurringPage() {
                     </p>
                   </div>
                 </div>
+                 {/* 삭제 버튼 - 항상 보이고 명확한 색상 */}
                  <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95 transition-all"
                   onClick={() => setDeleteId(item.fixed_transaction_id)}
+                  aria-label="고정 내역 삭제"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -173,38 +177,42 @@ export default function RecurringPage() {
         </div>
       )}
 
-      {/* 삭제 확인 다이얼로그 */}
+      {/* 삭제 확인 다이얼로그 - 토스 UX 스타일 */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent className="rounded-2xl max-w-[320px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>
-              고정 등록이 해제되며, 더 이상 자동으로 생성되지 않습니다.
+        <AlertDialogContent className="rounded-3xl max-w-[320px] p-6">
+          <AlertDialogHeader className="text-center">
+            <AlertDialogTitle className="text-xl font-bold">고정 내역을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground mt-2">
+              삭제하면 더 이상 자동으로 기록되지 않아요
             </AlertDialogDescription>
           </AlertDialogHeader>
-          
-          <div className="flex items-center space-x-2 py-4">
-            <Checkbox 
-              id="delete-related" 
+
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-muted/50 mt-4">
+            <Checkbox
+              id="delete-related"
               checked={deleteRelated}
               onCheckedChange={(checked) => setDeleteRelated(checked as boolean)}
+              className="h-5 w-5"
             />
-            <Label htmlFor="delete-related" className="text-sm font-medium leading-none cursor-pointer">
-              이 설정으로 생성된 과거 내역도 모두 삭제
+            <Label htmlFor="delete-related" className="text-sm font-medium leading-tight cursor-pointer">
+              이 설정으로 생성된 과거 내역도 함께 삭제
             </Label>
           </div>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">취소</AlertDialogCancel>
-            <AlertDialogAction 
+          <AlertDialogFooter className="flex-row gap-3 mt-6">
+            <AlertDialogCancel className="flex-1 h-12 rounded-2xl bg-muted hover:bg-muted/80 border-none font-bold text-foreground">
+              닫기
+            </AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+              className="flex-1 h-12 rounded-2xl bg-destructive hover:bg-destructive/90 font-bold text-white"
             >
               삭제하기
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }
