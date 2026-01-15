@@ -58,31 +58,31 @@ function TransactionItem({
   const name = category?.name || '미분류';
 
   return (
-    <div className="flex items-center gap-4 py-3 group">
+    <div className="flex items-center gap-3 sm:gap-4 py-3 group">
        <CategoryIcon
          iconName={icon}
-         className="h-11 w-11 shrink-0"
+         className="h-10 w-10 sm:h-11 sm:w-11 shrink-0"
          variant="squircle"
          showBackground={true}
        />
        <div className="flex-1 min-w-0">
-          <p className="font-bold text-[16px] truncate leading-tight mb-0.5">
+          <p className="font-bold text-[15px] sm:text-[16px] truncate leading-tight mb-0.5">
             {transaction.memo || name}
           </p>
-          <div className="flex items-center text-xs text-muted-foreground font-medium gap-1">
-             <span>{format(parseISO(transaction.date), 'M.d (EEE)', { locale: ko })}</span>
+          <div className="flex items-center text-[11px] sm:text-xs text-muted-foreground font-medium gap-1 truncate">
+             <span className="shrink-0">{format(parseISO(transaction.date), 'M.d (EEE)', { locale: ko })}</span>
              <span>·</span>
-             <span>{name}</span>
+             <span className="truncate">{name}</span>
           </div>
        </div>
-       <div className="text-right">
-          <span className={`block font-bold text-[16px] ${
+       <div className="text-right shrink-0">
+          <span className={`block font-bold text-[15px] sm:text-[16px] whitespace-nowrap ${
             transaction.type === 'income' ? 'text-income' : 'text-expense'
           }`}>
             {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
           </span>
        </div>
-       <div className="flex items-center gap-1">
+       <div className="flex items-center gap-0.5 sm:gap-1 pl-1">
         <Button
           variant="ghost"
           size="icon"
@@ -396,17 +396,17 @@ export default function HomePage() {
           {isLoading ? (
             <SummaryCardSkeleton />
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <button
                 onClick={() => handleTypeClick('income')}
-                className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-income/30 transition-all text-left active:scale-[0.98]"
+                className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-income/30 transition-all text-left active:scale-[0.98]"
                 aria-label={`수입 ${monthlyStats.income.toLocaleString()}원 보기`}
               >
                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" aria-hidden="true">
-                   <span className="text-4xl text-income">↘</span>
+                   <span className="text-3xl sm:text-4xl text-income">↘</span>
                  </div>
-                 <p className="text-sm font-medium text-muted-foreground">수입</p>
-                 <p className="text-2xl font-extrabold tracking-tight">
+                 <p className="text-xs sm:text-sm font-medium text-muted-foreground">수입</p>
+                 <p className="text-[clamp(18px,5vw,24px)] font-extrabold tracking-tight truncate w-full">
                    <span className="text-income">+</span>
                    <AnimatedCurrency value={monthlyStats.income} type="income" />
                  </p>
@@ -414,14 +414,14 @@ export default function HomePage() {
 
               <button
                 onClick={() => handleTypeClick('expense')}
-                className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-expense/30 transition-all text-left active:scale-[0.98]"
+                className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-expense/30 transition-all text-left active:scale-[0.98]"
                 aria-label={`지출 ${monthlyStats.expense.toLocaleString()}원 보기`}
               >
                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" aria-hidden="true">
-                    <span className="text-4xl text-expense">↗</span>
+                    <span className="text-3xl sm:text-4xl text-expense">↗</span>
                  </div>
-                 <p className="text-sm font-medium text-muted-foreground">지출</p>
-                 <p className="text-2xl font-extrabold tracking-tight">
+                 <p className="text-xs sm:text-sm font-medium text-muted-foreground">지출</p>
+                 <p className="text-[clamp(18px,5vw,24px)] font-extrabold tracking-tight truncate w-full">
                    <span className="text-expense">-</span>
                    <AnimatedCurrency value={monthlyStats.expense} type="expense" />
                  </p>
