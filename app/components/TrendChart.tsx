@@ -53,7 +53,7 @@ export default function TrendChart({ data }: TrendChartProps) {
             interval={0}
           />
           <Tooltip 
-            formatter={(value: number) => new Intl.NumberFormat('ko-KR').format(value || 0) + '원'}
+            formatter={(value: any) => new Intl.NumberFormat('ko-KR').format(Number(value) || 0) + '원'}
             contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', padding: '12px 16px' }}
             itemStyle={{ fontWeight: 'bold' }}
             cursor={{ fill: 'rgba(0,0,0,0.03)', radius: 8 }}
