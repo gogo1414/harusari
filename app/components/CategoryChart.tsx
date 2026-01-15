@@ -8,14 +8,15 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { cn } from '@/lib/utils';
+
 
 export interface ChartData {
   name: string;
   amount: number;
   icon: string;
   color: string;
-  [key: string]: any;
+  // Recharts Pie 컴포넌트 호환을 위한 인덱스 시그니처
+  [key: string]: string | number;
 }
 
 interface CategoryChartProps {
@@ -49,7 +50,7 @@ export default function CategoryChart({ stats, total, type, isIncome }: Category
                   ))}
                 </Pie>
                 <Tooltip 
-                   formatter={(value: any) => new Intl.NumberFormat('ko-KR').format(Number(value) || 0) + '원'}
+                   formatter={(value) => new Intl.NumberFormat('ko-KR').format(Number(value) || 0) + '원'}
                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                  />
               </PieChart>

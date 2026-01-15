@@ -1,10 +1,11 @@
+import React from 'react';
 import { render, screen } from '@testing-library/react';
 import TrendChart from './TrendChart';
 
 // Mock Recharts modules
 jest.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div className="recharts-responsive-container" style={{ width: 800, height: 320 }}>{children}</div>,
-  BarChart: ({ children }: any) => <div data-testid="bar-chart">{children}</div>,
+  ResponsiveContainer: ({ children }: React.PropsWithChildren) => <div className="recharts-responsive-container" style={{ width: 800, height: 320 }}>{children}</div>,
+  BarChart: ({ children }: React.PropsWithChildren) => <div data-testid="bar-chart">{children}</div>,
   Bar: () => <div data-testid="bar" />,
   XAxis: () => <div data-testid="xaxis" />,
   Tooltip: () => <div data-testid="tooltip" />,

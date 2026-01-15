@@ -42,16 +42,16 @@ export default function EditTransactionPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (formData: TransactionFormData) => {
-      const { error } = await supabase
+            const { error } = await supabase
         .from('transactions')
-        // @ts-ignore
+        // @ts-expect-error - Supabase update 타입 불일치
         .update({
           type: formData.type,
-          date: formData.date.toISOString().split('T')[0], // YYYY-MM-DD
+          date: formData.date.toISOString().split('T')[0],
           amount: formData.amount,
           category_id: formData.category_id,
           memo: formData.memo,
-        } as any) // 타입 에러 회피
+        })
         .eq('transaction_id', id);
 
       if (error) throw error;

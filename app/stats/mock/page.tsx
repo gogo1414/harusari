@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StatSection from '@/app/components/StatSection';
 import TrendChart from '@/app/components/TrendChart';
@@ -41,11 +40,7 @@ export default function MockStatsPage() {
     { name: '6월', income: 3300000, expense: 2450000, incomeLabel: '330.0천', expenseLabel: '245.0천' },
   ];
 
-  const formatBarLabel = (value: any) => {
-    const num = Number(value);
-    if (isNaN(num) || num === 0) return '';
-    return new Intl.NumberFormat('ko-KR', { notation: 'compact' }).format(num);
-  };
+  
 
   return (
     <div className="flex flex-col min-h-dvh bg-background pb-24 font-sans max-w-md mx-auto border-x border-border/50 shadow-2xl">

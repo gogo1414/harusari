@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, setDate, subDays } from 'date-fns';
+import { format, addMonths, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import type { Transaction, Category } from '@/types/database';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import StatSection from '@/app/components/StatSection';
 import TrendChart from '@/app/components/TrendChart';
+import { getCycleRange, filterByDateRange } from '@/lib/date';
 
 // Remove unused formatBarLabel since it's now part of TrendChart
 
@@ -39,44 +40,6 @@ export default function StatsPage() {
 
   const { settings } = useUserSettings();
   const cycleStartDay = settings.salary_cycle_date || 1;
-
-  // 사이클 범위 계산 함수
-  const getCycleRange = (baseDate: Date, cycleDay: number) => {
-    // baseDate가 포함된 사이클을 계산
-    // 만약 baseDate의 일자 >= cycleDay 이면: 이번 달 cycleDay ~ 다음 달 cycleDay - 1
-    // 만약 baseDate의 일자 < cycleDay 이면: 지난 달 cycleDay ~ 이번 달 cycleDay - 1
-    
-    // 하지만 '월별 통계' 관점에서는, "1월"을 선택했을 때 "1월에 끝나는 사이클"을 보여주는 것이 일반적임.
-    // 즉, salaryDay가 25일일 때, 1월 10일이든 1월 30일이든 "1월" 통계는 (12.25 ~ 1.24)를 의미하는 경우가 많음 (카드 대금처럼).
-    // 혹은 "1월"이 (1.25 ~ 2.24)를 의미할 수도 있음.
-    
-    // app/page.tsx와 동일한 로직(현재 날짜 포함 사이클)을 적용하면:
-    // 네비게이션으로 '2026년 1월'을 보고 있다면, currentDate는 '2026-01-01' (혹은 변경된 날짜)
-    // 1일 < 25일 이므로 -> 12.25 ~ 1.24 (직전 사이클)
-    // 만약 1월 26일로 설정되면 -> 1.25 ~ 2.24 (다음 사이클)
-    
-    // 여기서는 "선택된 월"의 의미를 "그 월에 종료되는 사이클" 혹은 "그 월의 대부분을 포함하는 사이클"로 정의하는게 UI상 자연스러움.
-    // 기존 로직(subMonths 1, etc)을 대체하기 위해, 
-    // "이번 달" = currentDate가 속한 사이클.
-    // "지난 달" = "이번 달"의 전 사이클.
-    
-    let start, end;
-    if (cycleDay === 1) {
-      start = startOfMonth(baseDate);
-      end = endOfMonth(baseDate);
-    } else {
-      const currentDay = baseDate.getDate();
-      if (currentDay >= cycleDay) {
-         start = setDate(baseDate, cycleDay);
-         end = subDays(addMonths(start, 1), 1);
-      } else {
-         const prevMonth = subMonths(baseDate, 1);
-         start = setDate(prevMonth, cycleDay);
-         end = subDays(addMonths(start, 1), 1);
-      }
-    }
-    return { start, end };
-  };
 
   const currentCycle = getCycleRange(currentDate, cycleStartDay);
   const lastCycle = getCycleRange(subMonths(currentCycle.start, 1), cycleStartDay);
@@ -170,15 +133,8 @@ export default function StatsPage() {
     return { iStats, eStats, tIncome, tExpense };
   };
 
-  // 데이터 처리 - 날짜 범위 기반 필터링
-  const filterByRange = (data: Transaction[], start: Date, end: Date) => {
-    const startStr = format(start, 'yyyy-MM-dd');
-    const endStr = format(end, 'yyyy-MM-dd');
-    return data.filter(t => t.date >= startStr && t.date <= endStr);
-  };
-
-  const currentMonthTrans = filterByRange(transactions, currentCycle.start, currentCycle.end);
-  const lastMonthTrans = filterByRange(transactions, lastCycle.start, lastCycle.end);
+  const currentMonthTrans = filterByDateRange(transactions, currentCycle.start, currentCycle.end);
+  const lastMonthTrans = filterByDateRange(transactions, lastCycle.start, lastCycle.end);
 
   const currentStats = calculateStats(currentMonthTrans);
   const lastStats = calculateStats(lastMonthTrans);
@@ -221,7 +177,7 @@ export default function StatsPage() {
     // 혹은 시작일 기준? 보통 종료일 기준이 '귀속월'로 인식됨.
     const labelDate = cycleEnd; 
     
-    const monthTrans = filterByRange(trendData, cycleStart, cycleEnd);
+    const monthTrans = filterByDateRange(trendData, cycleStart, cycleEnd);
     const income = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
     const expense = monthTrans.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     
@@ -233,15 +189,6 @@ export default function StatsPage() {
       expenseLabel: expense > 0 ? (expense / 10000).toFixed(1) : '',
     };
   });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const formatBarLabel = (value: any) => {
-    const num = Number(value);
-    if (isNaN(num) || num === 0) return '';
-    if (num >= 10000) return `${(num / 10000).toFixed(1)}만`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}천`;
-    return new Intl.NumberFormat('ko-KR').format(num);
-  };
 
   return (
     <div className="flex flex-col min-h-dvh bg-background pb-24 font-sans">

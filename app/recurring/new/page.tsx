@@ -29,9 +29,9 @@ export default function NewRecurringPage() {
 
       const day = formData.date.getDate(); // 선택한 날짜의 '일'을 사용
 
-      const { error } = await supabase
+            const { error } = await supabase
         .from('fixed_transactions')
-        // @ts-ignore
+        // @ts-expect-error - Supabase insert 타입 불일치
         .insert({
           user_id: user.id,
           type: formData.type,
@@ -41,7 +41,7 @@ export default function NewRecurringPage() {
           memo: formData.memo,
           end_type: formData.end_type,
           end_date: formData.end_date ? formData.end_date.toISOString().split('T')[0] : null,
-        } as any);
+        });
 
       if (error) throw error;
     },

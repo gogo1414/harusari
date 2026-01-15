@@ -42,9 +42,9 @@ export default function EditRecurringPage() {
     mutationFn: async (formData: TransactionFormData) => {
       const day = formData.date.getDate();
 
-      const { error } = await supabase
+            const { error } = await supabase
         .from('fixed_transactions')
-        // @ts-ignore
+        // @ts-expect-error - Supabase update 타입 불일치
         .update({
           type: formData.type,
           day: day,
@@ -53,7 +53,7 @@ export default function EditRecurringPage() {
           memo: formData.memo,
           end_type: formData.end_type,
           end_date: formData.end_date ? formData.end_date.toISOString().split('T')[0] : null,
-        } as any)
+        })
         .eq('fixed_transaction_id', id);
 
       if (error) throw error;

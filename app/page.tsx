@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import { LogOut, List, Repeat, BarChart3, Settings, Trash2, Edit2 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameMonth, setDate, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,11 +36,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { createClient } from '@/lib/supabase/client';
 import { showToast } from '@/lib/toast';
-
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('ko-KR').format(amount);
-}
+import { getCycleRange, filterByDateRange } from '@/lib/date';
+import { formatCurrency } from '@/lib/format';
 
 function TransactionItem({
   transaction,
@@ -126,9 +123,7 @@ export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // 타입별 BottomSheet 상태
   const [isTypeSheetOpen, setIsTypeSheetOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<'income' | 'expense' | null>(null);
   // 삭제 다이얼로그 상태
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
@@ -154,48 +149,17 @@ export default function HomePage() {
   });
 
   // 1. 사이클 범위 계산 및 데이터 필터링
-  const { cycleTransactions, cycleRange } = useMemo(() => {
+  const { cycleTransactions } = useMemo(() => {
     if (!settings) return { cycleTransactions: [], cycleRange: { start: '', end: '' } };
 
     const cycleStartDay = settings.salary_cycle_date || 1;
-    let start, end;
+    const { start, end } = getCycleRange(currentMonth, cycleStartDay);
 
-    if (cycleStartDay === 1) {
-      start = startOfMonth(currentMonth);
-      end = endOfMonth(currentMonth);
-    } else {
-      // 현재 날짜의 '일'이 급여일보다 크거나 같으면, 이번 달 급여일이 시작일 (다음 달 급여일 전날까지)
-      // 작으면, 지난 달 급여일이 시작일 (이번 달 급여일 전날까지)
-      // *주의: currentMonth는 사용자가 선택한 '월' 기준일 수 있음. 
-      // 달력 이동 시에는 보통 1일로 설정되므로, 이 로직이 '월 단위' 이동에는 '이전 달 급여일 ~ 이번 달 급여일 전' 패턴을 따르게 됨.
-      // 하지만 '오늘'이 포함된 초기 로딩 시점에는 정확한 사이클을 찾아야 함.
-      
-      const currentDay = currentMonth.getDate();
-      
-      // 단순히 월 이동(1일) 했을 때는 무조건 전월 급여일 시작으로 처리하는게 UI상 'N월' 보기 편함?
-      // 사용자 피드백: "Current Month" means the cycle that contains the current date.
-      // 그래서 날짜 비교 로직을 적용.
-      
-      if (currentDay >= cycleStartDay) {
-         start = setDate(currentMonth, cycleStartDay);
-         end = subDays(addMonths(start, 1), 1);
-      } else {
-         const prevMonth = subMonths(currentMonth, 1);
-         start = setDate(prevMonth, cycleStartDay);
-         end = subDays(addMonths(start, 1), 1);
-      }
-    }
+    // 범위 내 데이터 필터링 및 날짜 내림차순 정렬
+    const filtered = filterByDateRange(transactions, start, end)
+      .sort((a, b) => b.date.localeCompare(a.date));
 
-    const startStr = format(start, 'yyyy-MM-dd');
-    const endStr = format(end, 'yyyy-MM-dd');
-
-    // 범위 내 데이터 필터링
-    const filtered = transactions.filter(t => t.date >= startStr && t.date <= endStr);
-    
-    // 날짜 내림차순 정렬
-    filtered.sort((a, b) => b.date.localeCompare(a.date));
-
-    return { cycleTransactions: filtered, cycleRange: { start: startStr, end: endStr } };
+    return { cycleTransactions: filtered };
   }, [transactions, currentMonth, settings]);
 
   // 2. 월 통계 계산 (필터링된 데이터 사용)
@@ -232,8 +196,7 @@ export default function HomePage() {
   };
 
   // 타입별 목록 보기
-  const handleTypeClick = (type: 'income' | 'expense') => {
-    setSelectedType(type);
+  const handleTypeClick = () => {
     setIsTypeSheetOpen(true);
   };
 
@@ -415,7 +378,7 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <button
-                onClick={() => handleTypeClick('income')}
+                onClick={handleTypeClick}
                 className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-income/30 transition-all text-left active:scale-[0.98]"
                 aria-label={`수입 ${monthlyStats.income.toLocaleString()}원 보기`}
               >
@@ -430,7 +393,7 @@ export default function HomePage() {
               </button>
 
               <button
-                onClick={() => handleTypeClick('expense')}
+                onClick={handleTypeClick}
                 className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-expense/30 transition-all text-left active:scale-[0.98]"
                 aria-label={`지출 ${monthlyStats.expense.toLocaleString()}원 보기`}
               >

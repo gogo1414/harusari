@@ -1,13 +1,14 @@
+import React from 'react';
 import { render, screen } from '@testing-library/react';
 import CategoryChart from './CategoryChart';
 
 // Mock Recharts modules
 jest.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div className="recharts-responsive-container">{children}</div>,
-  PieChart: ({ children }: any) => <div data-testid="pie-chart">{children}</div>,
-  Pie: ({ children }: any) => <div data-testid="pie">{children}</div>,
+  ResponsiveContainer: ({ children }: React.PropsWithChildren) => <div className="recharts-responsive-container">{children}</div>,
+  PieChart: ({ children }: React.PropsWithChildren) => <div data-testid="pie-chart">{children}</div>,
+  Pie: ({ children }: React.PropsWithChildren) => <div data-testid="pie">{children}</div>,
   Cell: () => <div data-testid="cell" />,
-  BarChart: ({ children }: any) => <div data-testid="bar-chart">{children}</div>,
+  BarChart: ({ children }: React.PropsWithChildren) => <div data-testid="bar-chart">{children}</div>,
   Bar: () => <div data-testid="bar" />,
   XAxis: () => <div data-testid="xaxis" />,
   YAxis: () => <div data-testid="yaxis" />,
@@ -25,12 +26,10 @@ describe('CategoryChart', () => {
     expect(screen.getByTestId('pie-chart')).toBeInTheDocument();
   });
 
-  it('renders stacked bar chart when type is "bar"', () => {
+  it('renders stacked bar chart when type is \"bar\"', () => {
     render(<CategoryChart stats={mockData} type="bar" total={70000} />);
     // The bar chart is implemented as HTML divs, not Recharts
-    // Check for the presence of the container or specific color bars
-    const bars = document.getElementsByClassName('h-full first:pl-1 last:pr-1');
-    // Since we are using JSDOM, we can query by style or title
+    // Check for the presence of the container or specific color bars by title
     expect(screen.getByTitle('식비: 71.4%')).toBeInTheDocument();
     expect(screen.getByTitle('교통: 28.6%')).toBeInTheDocument();
   });

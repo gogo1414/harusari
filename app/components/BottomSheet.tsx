@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Category } from '@/types/database';
 import { CategoryIcon } from './IconPicker';
+import { formatCurrency } from '@/lib/format';
 
 type ViewMode = 'date' | 'type';
 
@@ -23,10 +24,6 @@ interface BottomSheetProps {
   // 타입별 보기 모드
   viewMode?: ViewMode;
   filterType?: 'income' | 'expense';
-}
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('ko-KR').format(amount);
 }
 
 // 거래 항목 컴포넌트 (재사용)

@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+
 import CategoryChart, { ChartData } from './CategoryChart';
 import { CategoryIcon } from './IconPicker';
 
@@ -15,7 +15,7 @@ interface StatSectionProps {
   diffAmount?: number;
 }
 
-export default function StatSection({ title, stats, total, type }: StatSectionProps) {
+export default function StatSection({ stats, total, type }: StatSectionProps) {
   const isIncome = type === 'income';
 
   return (
