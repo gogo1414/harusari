@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import { LogOut, List, Repeat, BarChart3, Settings } from 'lucide-react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameMonth } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import Calendar from './components/Calendar';
@@ -63,12 +63,13 @@ export default function HomePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
-  // 거래 내역 데이터 조회 (현재 월 기준)
+  // 거래 내역 데이터 조회 (달력 표시를 위해 전후 1달 여유 있게 조회)
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', format(currentMonth, 'yyyy-MM')],
     queryFn: async () => {
-      const startDate = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
+      // 달력은 급여일 설정에 따라 이전/다음 달 날짜도 보여주므로 범위를 넉넉하게 잡음 (전후 2개월)
+      const startDate = format(startOfMonth(subMonths(currentMonth, 2)), 'yyyy-MM-dd');
+      const endDate = format(endOfMonth(addMonths(currentMonth, 2)), 'yyyy-MM-dd');
 
       const { data, error } = await supabase
         .from('transactions')
@@ -82,17 +83,20 @@ export default function HomePage() {
     },
   });
 
-  // 월 통계 계산
+  // 월 통계 계산 (조회된 전체 데이터 중 현재 월에 해당하는 것만 필터링)
   const monthlyStats = useMemo(() => {
     return transactions.reduce(
       (acc, t) => {
-        if (t.type === 'income') acc.income += t.amount;
-        else acc.expense += t.amount;
+        // 데이터 날짜(YYYY-MM-DD)를 파싱하여 현재 보고 있는 월과 비교
+        if (isSameMonth(parseISO(t.date), currentMonth)) {
+          if (t.type === 'income') acc.income += t.amount;
+          else acc.expense += t.amount;
+        }
         return acc;
       },
       { income: 0, expense: 0 }
     );
-  }, [transactions]);
+  }, [transactions, currentMonth]);
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);

@@ -18,6 +18,7 @@ import {
   setDate,
   subDays,
   startOfDay,
+  parseISO,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
@@ -35,8 +36,8 @@ interface CalendarProps {
 }
 
 function getDailySummary(transactions: Transaction[], date: Date) {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  const dayTransactions = transactions.filter((t) => t.date === dateStr);
+  // 문자열 포맷 비교 대신 Date 객체 비교로 변경 (더 안전함)
+  const dayTransactions = transactions.filter((t) => isSameDay(parseISO(t.date), date));
 
   const income = dayTransactions
     .filter((t) => t.type === 'income')
