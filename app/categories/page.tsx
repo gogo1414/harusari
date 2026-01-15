@@ -2,7 +2,7 @@
 
 import type { Database } from '@/types/database';
 
-type CategoryUpdate = Database['public']['Tables']['categories']['Update'];
+type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -64,7 +64,7 @@ export default function CategoryManagementPage() {
         name: newCategory.name,
         icon: newCategory.icon,
         type: newCategory.type as 'income' | 'expense',
-      } as any);
+      } as CategoryInsert);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -78,7 +78,7 @@ export default function CategoryManagementPage() {
     mutationFn: async (category: { id: string; name: string; icon: string }) => {
       const { error } = await supabase
         .from('categories')
-        // @ts-ignore
+        // @ts-expect-error - 부분 업데이트 타입 불일치
         .update({ name: category.name, icon: category.icon })
         .eq('category_id', category.id);
       if (error) throw error;

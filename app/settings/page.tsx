@@ -59,7 +59,8 @@ export default function SettingsPage() {
 
       const { error } = await supabase
         .from('user_settings')
-        .upsert({ user_id: user.id, ...updates } as any); // Type assertion fix
+        // @ts-expect-error - upsert 타입 불일치
+        .upsert({ user_id: user.id, ...updates });
 
       if (error) throw error;
     },

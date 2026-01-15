@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { CategoryIcon } from '@/app/components/IconPicker';
 import type { Transaction, Category } from '@/types/database';
@@ -26,7 +25,7 @@ const COLORS = [
 export default function StatsPage() {
   const router = useRouter();
   const supabase = createClient();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate] = useState(new Date());
 
   // ... (Queries remain same) ...
   const { data: categories = [] } = useQuery({
@@ -168,8 +167,8 @@ export default function StatsPage() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                       formatter={(value: any) => `${new Intl.NumberFormat('ko-KR').format(value || 0)}원`}
+                    <Tooltip
+                       formatter={(value: number) => `${new Intl.NumberFormat('ko-KR').format(value || 0)}원`}
                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.95)' }}
                        itemStyle={{ fontWeight: 'bold', color: '#191F28' }}
                        labelStyle={{ display: 'none' }}
@@ -242,7 +241,7 @@ export default function StatsPage() {
                   <Tooltip 
                     cursor={{ fill: '#F2F4F6', radius: 8 }}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    formatter={(value: any) => `${new Intl.NumberFormat('ko-KR').format(value || 0)}원`}
+                    formatter={(value: number) => `${new Intl.NumberFormat('ko-KR').format(value || 0)}원`}
                   />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                   <Bar dataKey="income" name="수입" fill="#3182F6" radius={[6, 6, 6, 6]} barSize={12} />

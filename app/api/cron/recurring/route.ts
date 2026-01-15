@@ -1,7 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { type Database } from '@/types/database';
 
-type FixedTransactionUpdate = Database['public']['Tables']['fixed_transactions']['Update'];
+type FixedTransaction = Database['public']['Tables']['fixed_transactions']['Row'];
+type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
@@ -33,8 +34,7 @@ export async function GET(request: Request) {
 
     const processedItems = [];
     
-    // 타입 추론 우회
-    const items = recurringItems as any[];
+    const items = recurringItems as FixedTransaction[];
     
     for (const item of items) {
       // 2. 조건 검사
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
           date: currentDateStr,
           memo: item.memo, // 고정 지출 메모를 그대로 사용 (또는 "[고정] " 접두어 추가 가능)
           source_fixed_id: item.fixed_transaction_id,
-        } as any);
+        } as TransactionInsert);
 
       if (insertError) {
         console.error(`Failed to insert transaction for fixed_id ${item.fixed_transaction_id}:`, insertError);
@@ -71,9 +71,9 @@ export async function GET(request: Request) {
       }
 
       // 4. last_generated 업데이트
-      const { error: updateError } = await supabase
+      await supabase
         .from('fixed_transactions')
-        // @ts-ignore
+        // @ts-expect-error - last_generated 타입 불일치
         .update({ last_generated: currentDateStr })
         .eq('fixed_transaction_id', item.fixed_transaction_id);
         
@@ -87,8 +87,9 @@ export async function GET(request: Request) {
       date: currentDateStr
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Cron job failed:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

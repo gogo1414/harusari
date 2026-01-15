@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CategoryIcon } from '@/app/components/IconPicker';
 import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +20,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from '@/components/ui/label';
+import type { FixedTransaction, Category } from '@/types/database';
+
+// 카테고리 join된 고정 거래 타입
+interface FixedTransactionWithCategory extends FixedTransaction {
+  categories: Category | null;
+}
 
 export default function RecurringPage() {
   const router = useRouter();
@@ -111,12 +116,12 @@ export default function RecurringPage() {
            </div>
            <p className="text-lg font-medium text-muted-foreground">등록된 고정 내역이 없습니다</p>
            <p className="text-sm text-muted-foreground/60 mt-2">
-             거래 추가 시 '고정 내역으로 등록'을 선택해보세요
+             거래 추가 시 &apos;고정 내역으로 등록&apos;을 선택해보세요
            </p>
         </div>
       ) : (
         <div className="grid gap-3">
-          {recurringItems.map((item: any) => (
+          {recurringItems.map((item: FixedTransactionWithCategory) => (
             <div
               key={item.fixed_transaction_id}
               className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-card p-4 shadow-sm"

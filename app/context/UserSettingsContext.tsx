@@ -2,13 +2,12 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Database } from '@/types/database';
 
 type UserSettingsRow = Database['public']['Tables']['user_settings']['Row'];
 type UserSettingsUpdate = Database['public']['Tables']['user_settings']['Update'];
 type Category = Database['public']['Tables']['categories']['Row'];
-type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 
 interface UserSettings {
   salary_cycle_date: number;
@@ -97,8 +96,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
       (async () => {
         const { error } = await supabase.from('categories').insert(
-            // @ts-ignore 
-           defaultCategories.map(c => ({ user_id: userId, ...c }))
+          // @ts-expect-error - 기본 카테고리 타입 불일치
+          defaultCategories.map(c => ({ user_id: userId, ...c }))
         );
         if (!error) {
           queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -119,7 +118,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
     const { error } = await supabase
       .from('user_settings')
-      // @ts-ignore
+      // @ts-expect-error - upsert 타입 불일치
       .upsert({ user_id: userId, ...dbPayload });
 
     if (error) throw error;

@@ -1,11 +1,12 @@
 'use client';
 
-import { 
-  Utensils, Coffee, Beer, Bus, Car, Home, Smartphone, 
-  ShoppingCart, Shirt, Gamepad2, Pill, Book, Landmark, 
-  Briefcase, Gift, Plane, Dog, Heart, Zap, Wrench, 
-  CreditCard, Music, GraduationCap, DollarSign, Wallet,
+import {
+  Utensils, Coffee, Beer, Bus, Car, Home, Smartphone,
+  ShoppingCart, Shirt, Gamepad2, Pill, Book, Landmark,
+  Briefcase, Gift, Plane, Dog, Heart, Zap, Wrench,
+  CreditCard, Music, DollarSign, Wallet,
   PiggyBank, TrendingUp, Scissors, Smile,
+  type LucideIcon,
   type LucideProps
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -124,8 +125,8 @@ export function CategoryIcon({ iconName, className, variant = 'default', showBac
   const Icon = ICON_MAP[iconName];
   const color = getIconColor(iconName);
   
-  // LucideIcon 타입 호환성 문제 해결을 위해 any 캐스팅 사용
-  const LucideIcon = Icon as any;
+  // LucideIcon 타입 호환성 문제 해결
+  const LucideIcon = Icon as LucideIcon;
 
   const iconContent = Icon ? (
     <LucideIcon className={cn("h-full w-full", className)} strokeWidth={2.5} aria-hidden="true" />

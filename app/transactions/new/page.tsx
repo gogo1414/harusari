@@ -2,12 +2,27 @@
 
 import TransactionForm from '@/app/components/TransactionForm';
 import { createClient } from '@/lib/supabase/client';
-import type { Category } from '@/types/database';
+import type { Category, Database } from '@/types/database';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { Suspense } from 'react';
+
+type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
+type FixedTransactionInsert = Database['public']['Tables']['fixed_transactions']['Insert'];
+type FixedTransactionRow = Database['public']['Tables']['fixed_transactions']['Row'];
+
+interface TransactionFormData {
+  amount: number;
+  type: 'income' | 'expense';
+  category_id: string;
+  date: Date;
+  memo?: string;
+  is_recurring?: boolean;
+  end_type?: 'never' | 'date';
+  end_date?: Date;
+}
 
 function NewTransactionContent() {
   const router = useRouter();
@@ -31,7 +46,7 @@ function NewTransactionContent() {
 
   // 거래 저장 Mutation
   const mutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: TransactionFormData) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -56,12 +71,12 @@ function NewTransactionContent() {
 
         const { data: fixedData, error: fixedError } = await supabase
           .from('fixed_transactions')
-          .insert(fixedPayload as any)
+          .insert(fixedPayload as FixedTransactionInsert)
           .select()
           .single();
 
         if (fixedError) throw fixedError;
-        sourceFixedId = (fixedData as any).fixed_transaction_id;
+        sourceFixedId = (fixedData as FixedTransactionRow).fixed_transaction_id;
       }
 
       // 2. 실제 거래 내역 등록
@@ -73,7 +88,7 @@ function NewTransactionContent() {
         date: formattedDate,
         memo: data.memo,
         source_fixed_id: sourceFixedId,
-      } as any);
+      } as TransactionInsert);
 
       if (transactionError) throw transactionError;
     },
