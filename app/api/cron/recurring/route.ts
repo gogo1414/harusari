@@ -1,4 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { type Database } from '@/types/database';
+
+type FixedTransactionUpdate = Database['public']['Tables']['fixed_transactions']['Update'];
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
@@ -68,9 +71,9 @@ export async function GET(request: Request) {
       }
 
       // 4. last_generated 업데이트
-      // 4. last_generated 업데이트
-      await (supabase
-        .from('fixed_transactions') as any)
+      const { error: updateError } = await supabase
+        .from('fixed_transactions')
+        // @ts-ignore
         .update({ last_generated: currentDateStr })
         .eq('fixed_transaction_id', item.fixed_transaction_id);
         
