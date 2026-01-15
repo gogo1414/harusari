@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import { LogOut, List, Repeat, BarChart3, Settings } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameMonth, setDate, subDays } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import Calendar from './components/Calendar';
@@ -83,12 +83,35 @@ export default function HomePage() {
     },
   });
 
-  // 월 통계 계산 (조회된 전체 데이터 중 현재 월에 해당하는 것만 필터링)
+  // 월 통계 계산 (급여 사이클 기준 합산)
   const monthlyStats = useMemo(() => {
+    if (!settings) return { income: 0, expense: 0 };
+
+    const cycleStartDay = settings.salary_cycle_date || 1;
+    let start, end;
+
+    if (cycleStartDay === 1) {
+      // 1일이 시작일이면 단순히 해당 월의 1일~말일
+      start = startOfMonth(currentMonth);
+      end = endOfMonth(currentMonth);
+    } else {
+      // 급여일(예: 25일)이 설정된 경우: 지난달 25일 ~ 이번달 24일
+      // (달력 헤더에 표시되는 "12.25 ~ 01.24"와 일치시킴)
+      const prevMonth = subMonths(currentMonth, 1);
+      start = setDate(prevMonth, cycleStartDay);
+      // 종료일은 시작일로부터 1달 뒤의 하루 전
+      end = subDays(addMonths(start, 1), 1);
+    }
+
+    const startStr = format(start, 'yyyy-MM-dd');
+    const endStr = format(end, 'yyyy-MM-dd');
+
+    // console.log('Stats Cycle:', { startStr, endStr });
+
     return transactions.reduce(
       (acc, t) => {
-        // 데이터 날짜(YYYY-MM-DD)를 파싱하여 현재 보고 있는 월과 비교
-        if (isSameMonth(parseISO(t.date), currentMonth)) {
+        // 날짜 문자열(YYYY-MM-DD)로 범위 비교 (타임존 이슈 없음)
+        if (t.date >= startStr && t.date <= endStr) {
           if (t.type === 'income') acc.income += t.amount;
           else acc.expense += t.amount;
         }
@@ -96,7 +119,7 @@ export default function HomePage() {
       },
       { income: 0, expense: 0 }
     );
-  }, [transactions, currentMonth]);
+  }, [transactions, currentMonth, settings]);
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
