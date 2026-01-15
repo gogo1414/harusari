@@ -29,6 +29,9 @@ export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // 타입별 BottomSheet 상태
+  const [isTypeSheetOpen, setIsTypeSheetOpen] = useState(false);
+  const [selectedType, setSelectedType] = useState<'income' | 'expense' | null>(null);
 
   // 거래 내역 데이터 조회 (현재 월 기준)
   const { data: transactions = [], isLoading } = useQuery({
@@ -64,6 +67,12 @@ export default function HomePage() {
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
     setIsBottomSheetOpen(true);
+  };
+
+  // 타입별 목록 보기
+  const handleTypeClick = (type: 'income' | 'expense') => {
+    setSelectedType(type);
+    setIsTypeSheetOpen(true);
   };
 
   const handleLogout = async () => {
@@ -185,7 +194,10 @@ export default function HomePage() {
             </span>
           </h2>
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md transition-shadow">
+            <button
+              onClick={() => handleTypeClick('income')}
+              className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-income/30 transition-all text-left active:scale-[0.98]"
+            >
                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                  <span className="text-4xl text-income">↘</span>
                </div>
@@ -193,9 +205,12 @@ export default function HomePage() {
                <p className="text-2xl font-extrabold text-foreground tracking-tight">
                  {new Intl.NumberFormat('ko-KR').format(monthlyStats.income)}
                </p>
-            </div>
-            
-            <div className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md transition-shadow">
+            </button>
+
+            <button
+              onClick={() => handleTypeClick('expense')}
+              className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-expense/30 transition-all text-left active:scale-[0.98]"
+            >
                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                   <span className="text-4xl text-expense">↗</span>
                </div>
@@ -203,11 +218,12 @@ export default function HomePage() {
                <p className="text-2xl font-extrabold text-foreground tracking-tight">
                  {new Intl.NumberFormat('ko-KR').format(monthlyStats.expense)}
                </p>
-            </div>
+            </button>
           </div>
         </div>
       </div>
 
+      {/* 날짜별 BottomSheet */}
       <BottomSheet
         isOpen={isBottomSheetOpen}
         onClose={() => setIsBottomSheetOpen(false)}
@@ -216,6 +232,20 @@ export default function HomePage() {
         categories={categories}
         onEdit={() => {}} // TODO: 수정 기능 구현
         onDelete={handleDeleteTransaction}
+        viewMode="date"
+      />
+
+      {/* 타입별 BottomSheet */}
+      <BottomSheet
+        isOpen={isTypeSheetOpen}
+        onClose={() => setIsTypeSheetOpen(false)}
+        selectedDate={null}
+        transactions={transactions || []}
+        categories={categories}
+        onEdit={() => {}}
+        onDelete={handleDeleteTransaction}
+        viewMode="type"
+        filterType={selectedType || undefined}
       />
 
       <FAB />
