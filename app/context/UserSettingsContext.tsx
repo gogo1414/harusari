@@ -119,7 +119,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
     const { error } = await supabase
       .from('user_settings')
-      .upsert({ user_id: userId, ...dbPayload } as unknown as UserSettingsUpdate);
+      // @ts-ignore
+      .upsert({ user_id: userId, ...dbPayload });
 
     if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ['user_settings'] });
