@@ -59,7 +59,6 @@ describe('Calendar Component', () => {
       />
     );
     const sunday = screen.getByText('일');
-    const monday = screen.getByText('월');
     expect(sunday).toBeInTheDocument();
   });
 
@@ -90,10 +89,9 @@ describe('Calendar Component', () => {
     }
   });
 
-  it('displays income and expense dots or amounts', () => {
-    // In our Calendar implementation, we show amounts if space permits or dots.
-    // The current implementation shows text amounts for income/expense.
-    render(
+  it('displays income and expense indicator dots', () => {
+    // 현재 구현에서는 수입/지출을 색상 점(dot)으로 표시
+    const { container } = render(
       <Calendar
         transactions={mockTransactions}
         onDateSelect={mockOnDateSelect}
@@ -102,9 +100,12 @@ describe('Calendar Component', () => {
       />
     );
 
-    // "1만" for 10000 expense (displayed as -1만) and "5만" for 50000 income (+5만)
-    // Adjust expectation based on formatAmount function: 10000 -> 1만
-    expect(screen.getByText('-1만')).toBeInTheDocument();
-    expect(screen.getByText('+5만')).toBeInTheDocument();
+    // 수입 점 (bg-income 클래스를 가진 요소)
+    const incomeDots = container.querySelectorAll('.bg-income');
+    expect(incomeDots.length).toBeGreaterThan(0);
+
+    // 지출 점 (bg-expense 클래스를 가진 요소)
+    const expenseDots = container.querySelectorAll('.bg-expense');
+    expect(expenseDots.length).toBeGreaterThan(0);
   });
 });
