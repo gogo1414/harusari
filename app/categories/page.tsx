@@ -78,7 +78,8 @@ export default function CategoryManagementPage() {
     mutationFn: async (category: { id: string; name: string; icon: string }) => {
       const { error } = await supabase
         .from('categories')
-        .update({ name: category.name, icon: category.icon } as unknown as CategoryUpdate)
+        // @ts-ignore
+        .update({ name: category.name, icon: category.icon })
         .eq('category_id', category.id);
       if (error) throw error;
     },
