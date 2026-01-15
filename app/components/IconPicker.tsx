@@ -91,16 +91,16 @@ export default function IconPicker({ isOpen, onClose, onSelect, currentIcon }: I
 
 // 색상 팔레트 (Toss/BankSalad style pastel colors)
 const ICON_COLORS = [
-  '#FF6B6B', // Red
-  '#4ECDC4', // Teal
-  '#45B7D1', // Cyan
-  '#96CEB4', // Green
-  '#FFEEAD', // Yellow
-  '#D4A5A5', // Pink
-  '#9B59B6', // Purple
-  '#3498DB', // Blue
-  '#E67E22', // Orange
-  '#2ECC71', // Emerald
+  '#3182F6', // Toss Blue
+  '#F04452', // Red
+  '#33C7A2', // Mint
+  '#FFB800', // Yellow
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#06B6D4', // Cyan
+  '#F97316', // Orange
+  '#8D6E63', // Brown
+  '#78909C', // Blue Grey
 ];
 
 function getIconColor(name: string) {
