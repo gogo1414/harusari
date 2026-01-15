@@ -101,21 +101,21 @@ export default function SettingsPage() {
           <div className="grid grid-cols-3 gap-3">
              <button
                onClick={() => setTheme('light')}
-               className={`flex flex-col items-center justify-center gap-3 h-24 rounded-[20px] border transition-all ${theme === 'light' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-card border-transparent text-muted-foreground hover:bg-muted/50'}`}
+               className={`flex flex-col items-center justify-center gap-3 h-24 rounded-[20px] border transition-all ${theme === 'light' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-card border-border/80 text-muted-foreground hover:bg-muted/50 ring-1 ring-border/60'}`}
              >
                <Sun className="h-6 w-6" />
                <span className="text-xs font-bold">라이트</span>
              </button>
              <button
                onClick={() => setTheme('dark')}
-               className={`flex flex-col items-center justify-center gap-3 h-24 rounded-[20px] border transition-all ${theme === 'dark' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-card border-transparent text-muted-foreground hover:bg-muted/50'}`}
+               className={`flex flex-col items-center justify-center gap-3 h-24 rounded-[20px] border transition-all ${theme === 'dark' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-card border-border/80 text-muted-foreground hover:bg-muted/50 ring-1 ring-border/60'}`}
              >
                <Moon className="h-6 w-6" />
                <span className="text-xs font-bold">다크</span>
              </button>
              <button
                onClick={() => setTheme('system')}
-               className={`flex flex-col items-center justify-center gap-3 h-24 rounded-[20px] border transition-all ${theme === 'system' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-card border-transparent text-muted-foreground hover:bg-muted/50'}`}
+               className={`flex flex-col items-center justify-center gap-3 h-24 rounded-[20px] border transition-all ${theme === 'system' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-card border-border/80 text-muted-foreground hover:bg-muted/50 ring-1 ring-border/60'}`}
              >
                <Monitor className="h-6 w-6" />
                <span className="text-xs font-bold">시스템</span>
