@@ -160,3 +160,11 @@
     display: none;
   }
 }
+
+/* Recharts Focus Outline Removal */
+.recharts-responsive-container:focus,
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-layer:focus {
+  outline: none !important;
+}
