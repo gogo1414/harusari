@@ -85,79 +85,82 @@ export default function HomePage() {
   const weekStartDay = settings.week_start_day === 1 ? 'monday' : 'sunday';
 
   return (
-    <main className="flex min-h-dvh flex-col bg-background">
+    <main className="flex min-h-dvh flex-col bg-background font-sans">
       {/* 헤더 */}
-      <header className="sticky top-0 z-10 flex items-center justify-between bg-background/80 px-5 py-4 backdrop-blur-md">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 flex items-center justify-between bg-background/80 px-6 py-4 backdrop-blur-xl border-b border-black/5 dark:border-white/5 transition-all">
+        <div className="flex items-center gap-1">
            <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 text-foreground/80 hover:bg-muted" aria-label="메뉴 열기">
+                <Button variant="ghost" size="icon" className="-ml-3 h-11 w-11 rounded-full text-foreground/80 hover:bg-muted" aria-label="메뉴 열기">
                    <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] sm:w-[350px] p-0">
-                 <SheetHeader className="p-6 text-left border-b border-border/50 bg-muted/30">
-                   <SheetTitle className="text-xl font-bold text-primary">하루살이</SheetTitle>
-                   <p className="text-sm text-muted-foreground">오늘 벌어 오늘 사는 1인 가계부</p>
+              <SheetContent side="left" className="w-[300px] sm:w-[350px] p-0 rounded-r-[32px] border-r-0 shadow-2xl">
+                 <SheetHeader className="p-8 text-left border-b border-border/50 bg-[#F9FAFB] dark:bg-muted/30">
+                   <SheetTitle className="text-2xl font-extrabold text-primary flex items-center gap-2">
+                     <span className="text-3xl">💸</span> 하루살이
+                   </SheetTitle>
+                   <p className="text-sm text-muted-foreground mt-1 font-medium">오늘 벌어 오늘 사는 1인 가계부</p>
                  </SheetHeader>
                  
-                 <div className="flex flex-col p-4 gap-2">
-                    <Link href="/categories" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 rounded-xl p-3 hover:bg-muted transition-colors group">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 group-hover:bg-primary/20 text-primary transition-colors">
-                         <List className="h-5 w-5" />
+                 <div className="flex flex-col p-4 gap-2 mt-2">
+                    <Link href="/categories" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 rounded-2xl p-4 hover:bg-muted/80 transition-all group active:scale-95">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5 group-hover:ring-primary/20 group-hover:text-primary transition-all">
+                         <List className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                       </div>
-                      <span className="font-medium text-lg">카테고리 관리</span>
+                      <span className="font-bold text-lg text-foreground/90">카테고리 관리</span>
                     </Link>
 
-                    <Link href="/recurring" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 rounded-xl p-3 hover:bg-muted transition-colors group">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 group-hover:bg-primary/20 text-primary transition-colors">
-                         <Repeat className="h-5 w-5" />
+                    <Link href="/recurring" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 rounded-2xl p-4 hover:bg-muted/80 transition-all group active:scale-95">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5 group-hover:ring-primary/20 group-hover:text-primary transition-all">
+                         <Repeat className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                       </div>
-                      <span className="font-medium text-lg">고정 지출/수입</span>
+                      <span className="font-bold text-lg text-foreground/90">고정 지출/수입</span>
                     </Link>
                     
-                    <Link href="/stats" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 rounded-xl p-3 hover:bg-muted transition-colors group">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 group-hover:bg-primary/20 text-primary transition-colors">
-                         <BarChart3 className="h-5 w-5" />
+                    <Link href="/stats" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 rounded-2xl p-4 hover:bg-muted/80 transition-all group active:scale-95">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5 group-hover:ring-primary/20 group-hover:text-primary transition-all">
+                         <BarChart3 className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                       </div>
-                      <span className="font-medium text-lg">지출 분석</span>
+                      <span className="font-bold text-lg text-foreground/90">지출 분석</span>
                     </Link>
 
-                    <Link href="/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 rounded-xl p-3 hover:bg-muted transition-colors group">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 group-hover:bg-primary/20 text-primary transition-colors">
-                         <Settings className="h-5 w-5" />
+                    <Link href="/settings" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 rounded-2xl p-4 hover:bg-muted/80 transition-all group active:scale-95">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5 group-hover:ring-primary/20 group-hover:text-primary transition-all">
+                         <Settings className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                       </div>
-                      <span className="font-medium text-lg">환경 설정</span>
+                      <span className="font-bold text-lg text-foreground/90">환경 설정</span>
                     </Link>
                  </div>
                  
-                 <div className="absolute bottom-8 left-0 right-0 px-4">
+                 <div className="absolute bottom-8 left-0 right-0 px-6">
                     <Button 
                       variant="ghost" 
                       onClick={handleLogout}
-                      className="w-full justify-start gap-2 h-12 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/5"
+                      className="w-full justify-start gap-3 h-14 rounded-2xl text-muted-foreground hover:text-destructive hover:bg-destructive/5 px-4"
                     >
                       <LogOut className="h-5 w-5" />
-                      <span className="font-medium">로그아웃</span>
+                      <span className="font-semibold text-base">로그아웃</span>
                     </Button>
                  </div>
               </SheetContent>
            </Sheet>
            
-           <h1 className="text-xl font-bold tracking-tight text-primary">
+           <h1 className="text-xl font-extrabold tracking-tight text-foreground ml-1">
             하루살이
            </h1>
         </div>
         
-        {/* 우측 빈 공간 (레이아웃 균형을 위해) */}
-        <div className="w-8" />
+        {/* 우측 빈 공간 (레이아웃 균형을 위해) or Add notifications/profile later */}
+        <div className="w-10" />
       </header>
 
       {/* 달력 섹션 */}
-      <div className="flex-1 px-2 pt-2 pb-24">
-        <div className="rounded-3xl bg-card p-4 shadow-sm ring-1 ring-border/50">
+      <div className="flex-1 px-4 pt-4 pb-24">
+        {/* Main Card */}
+        <div className="rounded-[32px] bg-card p-5 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 relative overflow-hidden">
           {isLoading ? (
-             <div className="flex h-[300px] items-center justify-center">
+             <div className="flex h-[360px] items-center justify-center">
                <Loader2 className="h-8 w-8 animate-spin text-primary" />
              </div>
           ) : (
@@ -173,19 +176,34 @@ export default function HomePage() {
           )}
         </div>
         
-        {/* 월 요약 카드 */}
-        <div className="mt-6 grid grid-cols-2 gap-4 px-2">
-          <div className="rounded-2xl bg-income/10 p-4 text-center">
-            <p className="text-xs font-medium text-income/80">이번 달 수입</p>
-            <p className="mt-1 text-lg font-bold text-income">
-              {new Intl.NumberFormat('ko-KR').format(monthlyStats.income)}원
-            </p>
-          </div>
-          <div className="rounded-2xl bg-expense/10 p-4 text-center">
-            <p className="text-xs font-medium text-expense/80">이번 달 지출</p>
-            <p className="mt-1 text-lg font-bold text-expense">
-              {new Intl.NumberFormat('ko-KR').format(monthlyStats.expense)}원
-            </p>
+        {/* 월 요약 카드 - Premium Tiles */}
+        <div className="mt-6">
+          <h2 className="px-2 text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+            이번 달 현황
+            <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+               {format(currentMonth, 'M월')}
+            </span>
+          </h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md transition-shadow">
+               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                 <span className="text-4xl text-income">↘</span>
+               </div>
+               <p className="text-sm font-medium text-muted-foreground">수입</p>
+               <p className="text-2xl font-extrabold text-foreground tracking-tight">
+                 {new Intl.NumberFormat('ko-KR').format(monthlyStats.income)}
+               </p>
+            </div>
+            
+            <div className="rounded-[24px] bg-card p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[110px] relative overflow-hidden group hover:shadow-md transition-shadow">
+               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <span className="text-4xl text-expense">↗</span>
+               </div>
+               <p className="text-sm font-medium text-muted-foreground">지출</p>
+               <p className="text-2xl font-extrabold text-foreground tracking-tight">
+                 {new Intl.NumberFormat('ko-KR').format(monthlyStats.expense)}
+               </p>
+            </div>
           </div>
         </div>
       </div>

@@ -187,44 +187,39 @@ export default function Calendar({
               const isCurrentMonth = isSameMonth(day, currentDate);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isTodayDate = isToday(day);
+              
+              const hasIncome = income > 0;
+              const hasExpense = expense > 0;
 
               return (
-                <div key={day.toISOString()} className="flex justify-center h-[76px]">
-                <button
-                  onClick={() => onDateSelect(day)}
-                  className={`relative flex w-full flex-col items-center pt-2 transition-all rounded-xl ${
-                    !isCurrentMonth ? 'opacity-30' : ''
-                  } ${isSelected ? 'bg-primary/10 ring-1 ring-primary ring-inset' : 'hover:bg-muted/30'}`}
-                >
-                  <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-sm transition-all ${
-                      isTodayDate
-                        ? 'bg-primary font-bold text-primary-foreground shadow-sm'
-                        : isSelected
-                          ? 'font-bold text-primary'
-                          : 'text-foreground/80 font-medium'
+                <div key={day.toISOString()} className="flex justify-center h-[64px]">
+                  <button
+                    onClick={() => onDateSelect(day)}
+                    className={`relative flex w-full flex-col items-center justify-start pt-1.5 transition-all rounded-2xl ${
+                      !isCurrentMonth ? 'opacity-30' : ''
                     }`}
                   >
-                    {format(day, 'd')}
-                  </span>
+                    <span
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-[15px] transition-all ${
+                        isTodayDate
+                          ? 'bg-primary font-bold text-primary-foreground shadow-md'
+                          : isSelected
+                            ? 'bg-foreground text-background font-bold'
+                            : 'text-foreground font-medium hover:bg-muted'
+                      }`}
+                    >
+                      {format(day, 'd')}
+                    </span>
 
-                  <div className="mt-1 flex flex-col items-center gap-0.5 w-full px-0.5">
-                    {income > 0 && (
-                      <span className="truncate w-full text-center text-[10px] font-semibold text-income">
-                        +{formatAmount(income)}
-                      </span>
-                    )}
-                    {expense > 0 && (
-                      <span className="truncate w-full text-center text-[10px] font-semibold text-expense">
-                        -{formatAmount(expense)}
-                      </span>
-                    )}
-                    {/* 내역 없을 때 점 표시 */}
-                    {income === 0 && expense === 0 && (
-                       <span className="h-[2px]" />
-                    )}
-                  </div>
-                </button>
+                    <div className="mt-1.5 flex items-center justify-center gap-1 h-2">
+                       {hasIncome && (
+                         <span className="h-1.5 w-1.5 rounded-full bg-income shadow-sm" />
+                       )}
+                       {hasExpense && (
+                         <span className="h-1.5 w-1.5 rounded-full bg-expense shadow-sm" />
+                       )}
+                    </div>
+                  </button>
                 </div>
               );
             })}
