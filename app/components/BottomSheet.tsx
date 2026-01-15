@@ -30,6 +30,7 @@ function formatCurrency(amount: number) {
 }
 
 // 거래 항목 컴포넌트 (재사용)
+// 토스 UX 원칙: 모바일에서 버튼은 항상 보이고, 터치 타겟은 충분히 크게
 function TransactionItem({
   transaction,
   getCategoryIcon,
@@ -44,7 +45,7 @@ function TransactionItem({
   onDelete: (transactionId: string) => void;
 }) {
   return (
-    <li className="group flex items-center gap-4 py-1">
+    <li className="flex items-center gap-3 py-2 px-1 rounded-2xl hover:bg-muted/30 transition-colors">
       <div className="relative">
         <CategoryIcon
           iconName={getCategoryIcon(transaction.category_id)}
@@ -63,9 +64,9 @@ function TransactionItem({
         </p>
       </div>
 
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-2">
         <span
-          className={`block font-bold whitespace-nowrap text-[17px] ${
+          className={`block font-bold whitespace-nowrap text-[17px] mr-1 ${
             transaction.type === 'income' ? 'text-income' : 'text-expense'
           }`}
         >
@@ -73,20 +74,23 @@ function TransactionItem({
           {formatCurrency(transaction.amount)}
         </span>
 
-        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(transaction)}
-            className="bg-muted p-1.5 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Edit2 className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => onDelete(transaction.transaction_id)}
-            className="bg-muted p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        {/* 수정 버튼 - 항상 보임, 터치 친화적 크기 */}
+        <button
+          onClick={() => onEdit(transaction)}
+          className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary active:scale-95 active:bg-primary/20 transition-all"
+          aria-label="수정"
+        >
+          <Edit2 className="h-4 w-4" />
+        </button>
+
+        {/* 삭제 버튼 - 빨간색으로 명확하게 구분 */}
+        <button
+          onClick={() => onDelete(transaction.transaction_id)}
+          className="flex items-center justify-center w-9 h-9 rounded-xl bg-destructive/10 text-destructive active:scale-95 active:bg-destructive/20 transition-all"
+          aria-label="삭제"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
     </li>
   );

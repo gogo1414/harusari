@@ -175,20 +175,23 @@ export default function CategoryManagementPage() {
                 />
                 <span className="font-semibold text-foreground/90">{category.name}</span>
               </div>
-              <div className="flex gap-2 opacity-60 transition-opacity group-hover:opacity-100">
+              {/* 수정/삭제 버튼 - 항상 보이고 터치 친화적 */}
+              <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 hover:bg-muted"
+                  className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all"
                   onClick={() => openEditDialog(category)}
+                  aria-label={`${category.name} 수정`}
                 >
                   <Edit2 className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95 transition-all"
                   onClick={() => handleDelete(category.category_id)}
+                  aria-label={`${category.name} 삭제`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
