@@ -45,21 +45,24 @@ interface TransactionFormProps {
   categories: Category[];
   onSubmit: (data: TransactionFormData) => Promise<void>;
   initialDate?: Date;
+  initialData?: TransactionFormData;
+  isEditMode?: boolean;
+  isRecurringFixed?: boolean;
 }
 
-export default function TransactionForm({ categories, onSubmit, initialDate }: TransactionFormProps) {
+export default function TransactionForm({ categories, onSubmit, initialDate, initialData, isEditMode = false, isRecurringFixed = false }: TransactionFormProps) {
   const router = useRouter();
-  const [type, setType] = useState<'expense' | 'income'>('expense');
-  const [date, setDate] = useState<Date>(initialDate || new Date());
-  const [amount, setAmount] = useState('');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [memo, setMemo] = useState('');
-  const [isRecurring, setIsRecurring] = useState(false);
+  const [type, setType] = useState<'expense' | 'income'>(initialData?.type || 'expense');
+  const [date, setDate] = useState<Date>(initialData?.date || initialDate || new Date());
+  const [amount, setAmount] = useState(initialData?.amount ? initialData.amount.toLocaleString() : '');
+  const [categoryId, setCategoryId] = useState<string | null>(initialData?.category_id || null);
+  const [memo, setMemo] = useState(initialData?.memo || '');
+  const [isRecurring, setIsRecurring] = useState(initialData?.is_recurring || false);
   const [isLoading, setIsLoading] = useState(false);
 
   // 고정 지출 옵션
-  const [endType, setEndType] = useState<'never' | 'date'>('never');
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [endType, setEndType] = useState<'never' | 'date'>(initialData?.end_type || 'never');
+  const [endDate, setEndDate] = useState<Date | undefined>(initialData?.end_date ? new Date(initialData.end_date) : undefined);
 
   // initialDate 변경 시 state 업데이트 (useEffect 필요)
   useEffect(() => {
@@ -152,7 +155,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
-        <span className="text-lg font-bold">새로운 내역</span>
+        <span className="text-lg font-bold">{isEditMode ? '내역 수정' : '새로운 내역'}</span>
         <div className="w-10" />
       </div>
 
@@ -268,8 +271,8 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
                       className={cn(
                         "h-14 w-14 transition-all duration-300", 
                         categoryId === cat.category_id 
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg scale-105" 
-                            : "opacity-80 group-hover:opacity-100"
+                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg scale-105 opacity-100" 
+                            : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0 active:scale-95 active:opacity-100 active:grayscale-0"
                       )} 
                       variant="circle" 
                       showBackground={true} 
@@ -327,7 +330,8 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
             <Switch
               id="recurring"
               checked={isRecurring}
-              onCheckedChange={setIsRecurring}
+              onCheckedChange={isRecurringFixed ? undefined : setIsRecurring}
+              disabled={isRecurringFixed}
               className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary scale-110"
             />
           </div>
@@ -412,7 +416,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate }: T
           ) : (
              <span className="flex items-center gap-2">
                <Check className="w-6 h-6" strokeWidth={3} /> 
-               {amount ? `${amount}원 저장` : '저장하기'}
+               {amount ? `${amount}원 ${isEditMode ? '수정' : '저장'}` : (isEditMode ? '수정하기' : '저장하기')}
              </span>
           )}
         </Button>

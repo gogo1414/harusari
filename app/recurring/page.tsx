@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Trash2, Calendar, Repeat as RepeatIcon, Loader2 } from 'lucide-react';
+import { ChevronLeft, Trash2, Calendar, Repeat as RepeatIcon, Loader2, Edit2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -103,6 +103,14 @@ export default function RecurringPage() {
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <h1 className="text-xl font-bold">고정 지출/수입 관리</h1>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => router.push('/recurring/new')} 
+          className="ml-auto rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10"
+        >
+           <Plus className="h-6 w-6" />
+        </Button>
       </div>
 
       <div className="p-4">
@@ -144,16 +152,27 @@ export default function RecurringPage() {
                     </p>
                   </div>
                 </div>
-                 {/* 삭제 버튼 - 항상 보이고 명확한 색상 */}
-                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95 transition-all"
-                  onClick={() => setDeleteId(item.fixed_transaction_id)}
-                  aria-label="고정 내역 삭제"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                 {/* 버튼 그룹 */}
+                 <div className="flex items-center gap-1">
+                   <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all"
+                    onClick={() => router.push(`/recurring/edit/${item.fixed_transaction_id}`)}
+                    aria-label="고정 내역 수정"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                   <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95 transition-all"
+                    onClick={() => setDeleteId(item.fixed_transaction_id)}
+                    aria-label="고정 내역 삭제"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                 </div>
               </div>
 
               <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-1">
