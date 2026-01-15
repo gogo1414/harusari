@@ -4,12 +4,14 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
-import { LogOut, List, Repeat, BarChart3, Settings } from 'lucide-react';
+import { LogOut, List, Repeat, BarChart3, Settings, Trash2, Edit2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameMonth, setDate, subDays } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CategoryIcon } from './components/IconPicker';
+import type { Category, Transaction } from '@/types/database';
 import Calendar from './components/Calendar';
-import BottomSheet from './components/BottomSheet';
 import FAB from './components/FAB';
 import { AnimatedMenuIcon } from './components/AnimatedMenuIcon';
 import { AnimatedCurrency } from './components/AnimatedNumber';
@@ -34,7 +36,75 @@ import {
 } from "@/components/ui/alert-dialog";
 import { createClient } from '@/lib/supabase/client';
 import { showToast } from '@/lib/toast';
-import type { Transaction } from '@/types/database';
+
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('ko-KR').format(amount);
+}
+
+function TransactionItem({
+  transaction,
+  categories,
+  onDelete,
+  onEdit,
+}: {
+  transaction: Transaction;
+  categories: Category[];
+  onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
+}) {
+  const category = categories.find((c) => c.category_id === transaction.category_id);
+  const icon = category?.icon || 'money';
+  const name = category?.name || '미분류';
+
+  return (
+    <div className="flex items-center gap-4 py-3 group">
+       <CategoryIcon
+         iconName={icon}
+         className="h-11 w-11 shrink-0"
+         variant="squircle"
+         showBackground={true}
+       />
+       <div className="flex-1 min-w-0">
+          <p className="font-bold text-[16px] truncate leading-tight mb-0.5">
+            {transaction.memo || name}
+          </p>
+          <div className="flex items-center text-xs text-muted-foreground font-medium gap-1">
+             <span>{format(parseISO(transaction.date), 'M.d (EEE)', { locale: ko })}</span>
+             <span>·</span>
+             <span>{name}</span>
+          </div>
+       </div>
+       <div className="text-right">
+          <span className={`block font-bold text-[16px] ${
+            transaction.type === 'income' ? 'text-income' : 'text-expense'
+          }`}>
+            {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+          </span>
+       </div>
+       <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onEdit(transaction.transaction_id)}
+          className="h-8 w-8 text-muted-foreground/40 hover:text-primary hover:bg-primary/10 active:opacity-70 transition-colors"
+          aria-label="수정"
+        >
+          <Edit2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onDelete(transaction.transaction_id)}
+          className="h-8 w-8 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 active:opacity-70 transition-colors"
+          aria-label="삭제"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+       </div>
+    </div>
+  );
+}
 
 // 메뉴 아이템 애니메이션 variants
 const menuItemVariants = {
@@ -83,47 +153,65 @@ export default function HomePage() {
     },
   });
 
-  // 월 통계 계산 (급여 사이클 기준 합산)
-  const monthlyStats = useMemo(() => {
-    if (!settings) return { income: 0, expense: 0 };
+  // 1. 사이클 범위 계산 및 데이터 필터링
+  const { cycleTransactions, cycleRange } = useMemo(() => {
+    if (!settings) return { cycleTransactions: [], cycleRange: { start: '', end: '' } };
 
     const cycleStartDay = settings.salary_cycle_date || 1;
     let start, end;
 
     if (cycleStartDay === 1) {
-      // 1일이 시작일이면 단순히 해당 월의 1일~말일
       start = startOfMonth(currentMonth);
       end = endOfMonth(currentMonth);
     } else {
-      // 급여일(예: 25일)이 설정된 경우: 지난달 25일 ~ 이번달 24일
-      // (달력 헤더에 표시되는 "12.25 ~ 01.24"와 일치시킴)
       const prevMonth = subMonths(currentMonth, 1);
       start = setDate(prevMonth, cycleStartDay);
-      // 종료일은 시작일로부터 1달 뒤의 하루 전
       end = subDays(addMonths(start, 1), 1);
     }
 
     const startStr = format(start, 'yyyy-MM-dd');
     const endStr = format(end, 'yyyy-MM-dd');
 
-    // console.log('Stats Cycle:', { startStr, endStr });
+    // 범위 내 데이터 필터링
+    const filtered = transactions.filter(t => t.date >= startStr && t.date <= endStr);
+    
+    // 날짜 내림차순 정렬
+    filtered.sort((a, b) => b.date.localeCompare(a.date));
 
-    return transactions.reduce(
+    return { cycleTransactions: filtered, cycleRange: { start: startStr, end: endStr } };
+  }, [transactions, currentMonth, settings]);
+
+  // 2. 월 통계 계산 (필터링된 데이터 사용)
+  const monthlyStats = useMemo(() => {
+    return cycleTransactions.reduce(
       (acc, t) => {
-        // 날짜 문자열(YYYY-MM-DD)로 범위 비교 (타임존 이슈 없음)
-        if (t.date >= startStr && t.date <= endStr) {
-          if (t.type === 'income') acc.income += t.amount;
-          else acc.expense += t.amount;
-        }
+        if (t.type === 'income') acc.income += t.amount;
+        else acc.expense += t.amount;
         return acc;
       },
       { income: 0, expense: 0 }
     );
-  }, [transactions, currentMonth, settings]);
+  }, [cycleTransactions]);
+
+  // 3. 리스트 그룹핑 (날짜별)
+  const groupedTransactions = useMemo(() => {
+    const grouped: Record<string, Transaction[]> = {};
+    cycleTransactions.forEach(t => {
+      if (!grouped[t.date]) grouped[t.date] = [];
+      grouped[t.date].push(t);
+    });
+    return grouped;
+  }, [cycleTransactions]);
+
+  const sortedDates = Object.keys(groupedTransactions).sort((a, b) => b.localeCompare(a));
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
     setIsBottomSheetOpen(true);
+  };
+
+  const handleEdit = (id: string) => {
+    router.push(`/transactions/edit/${id}`);
   };
 
   // 타입별 목록 보기
@@ -292,7 +380,7 @@ export default function HomePage() {
               currentDate={currentMonth}
               onMonthChange={setCurrentMonth}
               weekStartDay={weekStartDay}
-              cycleStartDay={settings.salary_cycle_date || 1}
+              cycleStartDay={settings?.salary_cycle_date || 1}
             />
           )}
         </div>
@@ -343,30 +431,47 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 날짜별 BottomSheet */}
-      <BottomSheet
-        isOpen={isBottomSheetOpen}
-        onClose={() => setIsBottomSheetOpen(false)}
-        selectedDate={selectedDate}
-        transactions={transactions || []}
-        categories={categories}
-        onEdit={() => {}} // TODO: 수정 기능 구현
-        onDelete={handleDeleteRequest}
-        viewMode="date"
-      />
 
-      {/* 타입별 BottomSheet */}
-      <BottomSheet
-        isOpen={isTypeSheetOpen}
-        onClose={() => setIsTypeSheetOpen(false)}
-        selectedDate={null}
-        transactions={transactions || []}
-        categories={categories}
-        onEdit={() => {}}
-        onDelete={handleDeleteRequest}
-        viewMode="type"
-        filterType={selectedType || undefined}
-      />
+
+      {/* 리스트 섹션 (인라인 노출) */}
+      <div className="px-5 pb-24 -mt-16">
+         <div className="bg-card rounded-[32px] p-6 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 min-h-[300px]">
+             <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
+                <span>거래 내역</span>
+                <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                   {cycleTransactions.length}건
+                </span>
+             </h3>
+             
+             {cycleTransactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center opacity-60">
+                   <span className="text-4xl mb-2">🍃</span>
+                   <p className="text-sm font-medium">내역이 없어요</p>
+                </div>
+             ) : (
+                <div className="space-y-6">
+                   {sortedDates.map(date => (
+                      <div key={date}>
+                         <h4 className="text-xs font-bold text-muted-foreground mb-2 px-1">
+                            {format(parseISO(date), 'd일 EEEE', { locale: ko })}
+                         </h4>
+                         <div className="space-y-1">
+                            {groupedTransactions[date].map(t => (
+                               <TransactionItem
+                                  key={t.transaction_id}
+                                  transaction={t}
+                                  categories={categories}
+                                  onDelete={handleDeleteRequest}
+                                  onEdit={handleEdit}
+                               />
+                            ))}
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             )}
+         </div>
+      </div>
 
       {/* 삭제 확인 다이얼로그 - 토스 UX 스타일 */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
