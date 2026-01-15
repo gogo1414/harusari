@@ -164,6 +164,38 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* 알림 설정 */}
+        <section className="space-y-6">
+          <h2 className="text-lg font-semibold border-b pb-2">알림 설정</h2>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-base">알림 허용</Label>
+              <div className="text-sm text-muted-foreground">
+                매일 정해진 시간에 가계부 작성을 알려드립니다.
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if ('Notification' in window) {
+                  Notification.requestPermission().then((permission) => {
+                    if (permission === 'granted') {
+                      new Notification('알림이 설정되었습니다', {
+                        body: '하루살이에서 알림을 보낼 수 있습니다.',
+                        icon: '/icons/icon-192.png'
+                      });
+                    }
+                  });
+                } else {
+                  alert('이 브라우저는 알림을 지원하지 않습니다.');
+                }
+              }}
+            >
+              알림 켜기
+            </Button>
+          </div>
+        </section>
+
         <section className="pt-4">
           <div className="rounded-xl bg-muted/50 p-4 text-xs text-muted-foreground text-center">
             <p>하루살이 v0.1.0</p>

@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -36,6 +37,14 @@
   --color-expense: var(--expense);
   
   --radius: 1.5rem;
+
+  /* Font Configuration for v4 */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+
+  /* Refined Shadows for Toss-like feel */
+  --shadow-sm: 0 2px 8px 0 rgb(0 0 0 / 0.04);
+  --shadow: 0 4px 16px 0 rgb(0 0 0 / 0.08);
+  --shadow-md: 0 8px 24px 0 rgb(0 0 0 / 0.12);
 }
 
 :root {
@@ -114,6 +123,7 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
+    font-family: var(--font-sans);
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
     -webkit-font-smoothing: antialiased;
   }
