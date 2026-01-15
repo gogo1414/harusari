@@ -66,10 +66,10 @@ function TransactionItem({
       <div className="flex flex-col items-end gap-1">
         <span
           className={`block font-bold whitespace-nowrap text-[17px] ${
-            transaction.type === 'income' ? 'text-income' : 'text-foreground'
+            transaction.type === 'income' ? 'text-income' : 'text-expense'
           }`}
         >
-          {transaction.type === 'income' ? '+' : ''}
+          {transaction.type === 'income' ? '+' : '-'}
           {formatCurrency(transaction.amount)}
         </span>
 

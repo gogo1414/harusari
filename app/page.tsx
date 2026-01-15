@@ -202,8 +202,8 @@ export default function HomePage() {
                  <span className="text-4xl text-income">↘</span>
                </div>
                <p className="text-sm font-medium text-muted-foreground">수입</p>
-               <p className="text-2xl font-extrabold text-foreground tracking-tight">
-                 {new Intl.NumberFormat('ko-KR').format(monthlyStats.income)}
+               <p className="text-2xl font-extrabold text-income tracking-tight">
+                 +{new Intl.NumberFormat('ko-KR').format(monthlyStats.income)}
                </p>
             </button>
 
@@ -215,8 +215,8 @@ export default function HomePage() {
                   <span className="text-4xl text-expense">↗</span>
                </div>
                <p className="text-sm font-medium text-muted-foreground">지출</p>
-               <p className="text-2xl font-extrabold text-foreground tracking-tight">
-                 {new Intl.NumberFormat('ko-KR').format(monthlyStats.expense)}
+               <p className="text-2xl font-extrabold text-expense tracking-tight">
+                 -{new Intl.NumberFormat('ko-KR').format(monthlyStats.expense)}
                </p>
             </button>
           </div>
