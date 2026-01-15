@@ -341,22 +341,24 @@ export default function HomePage() {
         filterType={selectedType || undefined}
       />
 
-      {/* 삭제 확인 다이얼로그 */}
+      {/* 삭제 확인 다이얼로그 - 토스 UX 스타일 */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-3xl max-w-[320px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>거래 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 거래를 삭제하시겠습니까? 삭제된 거래는 복구할 수 없습니다.
+        <AlertDialogContent className="rounded-3xl max-w-[320px] p-6">
+          <AlertDialogHeader className="text-center">
+            <AlertDialogTitle className="text-xl font-bold">이 내역을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground mt-2">
+              삭제한 내역은 다시 복구할 수 없어요
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row gap-2">
-            <AlertDialogCancel className="flex-1 rounded-xl">취소</AlertDialogCancel>
+          <AlertDialogFooter className="flex-row gap-3 mt-6">
+            <AlertDialogCancel className="flex-1 h-12 rounded-2xl bg-muted hover:bg-muted/80 border-none font-bold text-foreground">
+              닫기
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="flex-1 rounded-xl bg-destructive hover:bg-destructive/90"
+              className="flex-1 h-12 rounded-2xl bg-destructive hover:bg-destructive/90 font-bold text-white"
             >
-              삭제
+              삭제하기
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
