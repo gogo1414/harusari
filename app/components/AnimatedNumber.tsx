@@ -25,7 +25,7 @@ const defaultFormat = (n: number) => {
 export function AnimatedNumber({
   value,
   format = defaultFormat,
-  duration = 0.8,
+  duration = 0.4,
   className = '',
   prefix = '',
   suffix = '',
@@ -104,6 +104,7 @@ export function AnimatedCurrency({
       prefix={sign}
       suffix="원"
       className={`${colorClass} ${className}`.trim()}
+      duration={0.4}
     />
   );
 }
@@ -143,7 +144,7 @@ interface CountUpProps {
 export function CountUp({
   end,
   start = 0,
-  duration = 1.5,
+  duration = 0.5,
   className = '',
 }: CountUpProps) {
   const prefersReducedMotion = useReducedMotion();

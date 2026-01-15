@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { createClient } from '@/lib/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +33,43 @@ export default function SettingsPage() {
   }, []);
 
   // 사용자 설정 조회
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const stored = localStorage.getItem('notification_enabled');
+      if (stored === 'true' && Notification.permission === 'granted') {
+        // eslint-disable-next-line
+        setNotificationEnabled(true);
+      }
+    }
+  }, []);
+
+  const handleNotificationToggle = async (checked: boolean) => {
+    if (checked) {
+      if (!('Notification' in window)) {
+        alert('이 브라우저는 알림을 지원하지 않습니다.');
+        return;
+      }
+      
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setNotificationEnabled(true);
+        localStorage.setItem('notification_enabled', 'true');
+        new Notification('알림이 켜졌습니다', { 
+          body: '이제 하루살이 알림을 받습니다.',
+          icon: '/icons/icon-192.png'
+        });
+      } else {
+        alert('알림 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
+        setNotificationEnabled(false);
+      }
+    } else {
+      setNotificationEnabled(false);
+      localStorage.setItem('notification_enabled', 'false');
+    }
+  };
+
   const { data: userSettings, isLoading: isSettingsLoading } = useQuery({
     queryKey: ['user_settings'],
     queryFn: async () => {
@@ -181,27 +219,11 @@ export default function SettingsPage() {
                     정해진 시간에 작성 알림을 받습니다
                   </div>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="rounded-full px-4 h-9 font-bold bg-primary/10 text-primary hover:bg-primary/20"
-                  onClick={() => {
-                    if ('Notification' in window) {
-                      Notification.requestPermission().then((permission) => {
-                        if (permission === 'granted') {
-                          new Notification('알림이 설정되었습니다', {
-                            body: '하루살이에서 알림을 보낼 수 있습니다.',
-                            icon: '/icons/icon-192.png'
-                          });
-                        }
-                      });
-                    } else {
-                      alert('이 브라우저는 알림을 지원하지 않습니다.');
-                    }
-                  }}
-                >
-                  켜기
-                </Button>
+                <Switch
+                  checked={notificationEnabled}
+                  onCheckedChange={handleNotificationToggle}
+                  className="data-[state=checked]:bg-primary"
+                />
              </div>
           </div>
         </section>
