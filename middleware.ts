@@ -13,8 +13,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - icons (PWA icons)
-     * Feel free to modify this pattern to include more paths.
+     * - auth (auth callback routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icons|auth).*)',
   ],
 };
