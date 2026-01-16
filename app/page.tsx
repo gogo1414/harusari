@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import { LogOut, List, Repeat, BarChart3, Settings, Trash2, Edit2, Calculator } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +16,7 @@ import FAB from '@/components/common/FAB';
 import { AnimatedMenuIcon } from '@/components/animation/AnimatedMenuIcon';
 import { AnimatedCurrency } from '@/components/animation/AnimatedNumber';
 import { CalendarSkeleton, SummaryCardSkeleton } from '@/components/common/Skeleton';
+import DailyTransactionCard from '@/components/common/DailyTransactionCard';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -121,7 +122,6 @@ export default function HomePage() {
   const { settings, categories } = useUserSettings();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isTypeSheetOpen, setIsTypeSheetOpen] = useState(false);
   // 삭제 다이얼로그 상태
@@ -187,8 +187,12 @@ export default function HomePage() {
   const sortedDates = Object.keys(groupedTransactions).sort((a, b) => b.localeCompare(a));
 
   const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
-    setIsBottomSheetOpen(true);
+    // 같은 날짜 클릭 시 토글 (선택 해제)
+    if (selectedDate && isSameDay(date, selectedDate)) {
+      setSelectedDate(null);
+    } else {
+      setSelectedDate(date);
+    }
   };
 
   const handleEdit = (id: string) => {
@@ -247,8 +251,8 @@ export default function HomePage() {
       if (e.key === 'Escape') {
         if (deleteDialogOpen) {
           setDeleteDialogOpen(false);
-        } else if (isBottomSheetOpen) {
-          setIsBottomSheetOpen(false);
+        } else if (selectedDate) {
+          setSelectedDate(null);
         } else if (isTypeSheetOpen) {
           setIsTypeSheetOpen(false);
         } else if (isMenuOpen) {
@@ -259,7 +263,7 @@ export default function HomePage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [router, deleteDialogOpen, isBottomSheetOpen, isTypeSheetOpen, isMenuOpen]);
+  }, [router, deleteDialogOpen, selectedDate, isTypeSheetOpen, isMenuOpen]);
 
   return (
     <main className="flex min-h-dvh flex-col bg-background font-sans">
@@ -373,6 +377,20 @@ export default function HomePage() {
             />
           )}
         </div>
+
+        {/* 선택 날짜 인라인 카드 */}
+        <AnimatePresence>
+          {selectedDate && (
+            <DailyTransactionCard
+              date={selectedDate}
+              transactions={transactions || []}
+              categories={categories}
+              onEdit={handleEdit}
+              onDelete={handleDeleteRequest}
+              onClose={() => setSelectedDate(null)}
+            />
+          )}
+        </AnimatePresence>
         
         {/* 월 요약 카드 - Premium Tiles */}
         <div className="mt-6">

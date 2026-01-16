@@ -23,6 +23,7 @@ import {
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatCompactCurrency } from '@/lib/format';
 import type { Transaction } from '@/types/database';
 
 interface CalendarProps {
@@ -218,7 +219,7 @@ export default function Calendar({
               const hasExpense = expense > 0;
 
               return (
-                <div key={day.toISOString()} className="flex justify-center h-[64px]">
+                <div key={day.toISOString()} className="flex justify-center h-[80px]">
                   <button
                     onClick={() => onDateSelect(day)}
                     className={`relative flex w-full flex-col items-center justify-start pt-1.5 transition-all rounded-2xl ${
@@ -226,7 +227,7 @@ export default function Calendar({
                     }`}
                   >
                     <span
-                      className={`flex h-9 w-9 items-center justify-center rounded-full text-[15px] transition-all ${
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-[14px] transition-all ${
                         isTodayDate
                           ? 'bg-primary font-bold text-primary-foreground shadow-md'
                           : isSelected
@@ -239,12 +240,13 @@ export default function Calendar({
                       {format(day, 'd')}
                     </span>
 
-                    <div className="mt-1.5 flex items-center justify-center gap-1 h-2">
+                    {/* 일별 수입/지출 금액 표시 */}
+                    <div className="mt-1 flex flex-col items-center gap-0 text-[9px] font-bold leading-tight min-h-[24px]">
                        {hasIncome && (
-                         <span className="h-1.5 w-1.5 rounded-full bg-income shadow-sm" />
+                         <span className="text-income whitespace-nowrap">+{formatCompactCurrency(income)}</span>
                        )}
                        {hasExpense && (
-                         <span className="h-1.5 w-1.5 rounded-full bg-expense shadow-sm" />
+                         <span className="text-expense whitespace-nowrap">-{formatCompactCurrency(expense)}</span>
                        )}
                     </div>
                   </button>
@@ -257,3 +259,4 @@ export default function Calendar({
     </div>
   );
 }
+

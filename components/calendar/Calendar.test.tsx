@@ -89,8 +89,8 @@ describe('Calendar Component', () => {
     }
   });
 
-  it('displays income and expense indicator dots', () => {
-    // 현재 구현에서는 수입/지출을 색상 점(dot)으로 표시
+  it('displays income and expense amounts', () => {
+    // 현재 구현에서는 수입/지출을 축약 금액 텍스트로 표시
     const { container } = render(
       <Calendar
         transactions={mockTransactions}
@@ -100,12 +100,12 @@ describe('Calendar Component', () => {
       />
     );
 
-    // 수입 점 (bg-income 클래스를 가진 요소)
-    const incomeDots = container.querySelectorAll('.bg-income');
-    expect(incomeDots.length).toBeGreaterThan(0);
+    // 수입 금액 (text-income 클래스를 가진 요소)
+    const incomeAmounts = container.querySelectorAll('.text-income');
+    expect(incomeAmounts.length).toBeGreaterThan(0);
 
-    // 지출 점 (bg-expense 클래스를 가진 요소)
-    const expenseDots = container.querySelectorAll('.bg-expense');
-    expect(expenseDots.length).toBeGreaterThan(0);
+    // 지출 금액 (text-expense 클래스를 가진 요소)
+    const expenseAmounts = container.querySelectorAll('.text-expense');
+    expect(expenseAmounts.length).toBeGreaterThan(0);
   });
 });
