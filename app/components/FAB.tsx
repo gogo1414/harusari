@@ -4,7 +4,13 @@ import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 
-export default function FAB() {
+import { format } from 'date-fns';
+
+interface FABProps {
+  selectedDate?: Date | null;
+}
+
+export default function FAB({ selectedDate }: FABProps) {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
 
@@ -12,7 +18,12 @@ export default function FAB() {
   if (prefersReducedMotion) {
     return (
       <button
-        onClick={() => router.push('/transactions/new')}
+        onClick={() => {
+          const url = selectedDate 
+            ? `/transactions/new?date=${format(selectedDate, 'yyyy-MM-dd')}`
+            : '/transactions/new';
+          router.push(url);
+        }}
         className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
         aria-label="새 거래 추가"
       >
@@ -23,7 +34,12 @@ export default function FAB() {
 
   return (
     <motion.button
-      onClick={() => router.push('/transactions/new')}
+      onClick={() => {
+        const url = selectedDate 
+          ? `/transactions/new?date=${format(selectedDate, 'yyyy-MM-dd')}`
+          : '/transactions/new';
+        router.push(url);
+      }}
       className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
       aria-label="새 거래 추가"
       // 호버/탭 애니메이션

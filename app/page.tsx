@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
-import { LogOut, List, Repeat, BarChart3, Settings, Trash2, Edit2 } from 'lucide-react';
+import { LogOut, List, Repeat, BarChart3, Settings, Trash2, Edit2, Calculator } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -303,6 +303,15 @@ export default function HomePage() {
                           </motion.div>
 
                           <motion.div custom={2} variants={menuItemVariants} initial="hidden" animate="visible">
+                            <Link href="/installment/new" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/installment/new' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
+                              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/installment/new' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
+                                 <Calculator className={`h-6 w-6 ${pathname === '/installment/new' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
+                              </div>
+                              <span className={`font-bold text-lg ${pathname === '/installment/new' ? 'text-primary' : 'text-foreground/90'}`}>할부 등록</span>
+                            </Link>
+                          </motion.div>
+
+                          <motion.div custom={3} variants={menuItemVariants} initial="hidden" animate="visible">
                             <Link href="/stats" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/stats' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
                               <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/stats' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
                                  <BarChart3 className={`h-6 w-6 ${pathname === '/stats' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
@@ -311,7 +320,7 @@ export default function HomePage() {
                             </Link>
                           </motion.div>
 
-                          <motion.div custom={3} variants={menuItemVariants} initial="hidden" animate="visible">
+                          <motion.div custom={4} variants={menuItemVariants} initial="hidden" animate="visible">
                             <Link href="/settings" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/settings' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
                               <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
                                  <Settings className={`h-6 w-6 ${pathname === '/settings' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
@@ -476,7 +485,7 @@ export default function HomePage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <FAB />
+      <FAB selectedDate={selectedDate} />
     </main>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/app/components/TransactionForm';
 import { showToast } from '@/lib/toast';
@@ -52,7 +53,7 @@ export default function EditRecurringPage() {
           category_id: formData.category_id,
           memo: formData.memo,
           end_type: formData.end_type,
-          end_date: formData.end_date ? formData.end_date.toISOString().split('T')[0] : null,
+          end_date: formData.end_date ? format(formData.end_date, 'yyyy-MM-dd') : null,
         })
         .eq('fixed_transaction_id', id);
 
