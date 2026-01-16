@@ -1,8 +1,8 @@
 'use client';
 
 
-import CategoryChart, { ChartData } from './CategoryChart';
-import { CategoryIcon } from './IconPicker';
+import CategoryChart, { ChartData } from '@/components/charts/CategoryChart';
+import { CategoryIcon } from '@/components/category/IconPicker';
 
 // Re-export shared interface to avoid breaking changes if possible
 export type StatData = ChartData;

@@ -6,7 +6,7 @@ import { ChevronLeft, Trash2, Calendar, Repeat as RepeatIcon, Loader2, Edit2, Pl
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CategoryIcon } from '@/app/components/IconPicker';
+import { CategoryIcon } from '@/components/category/IconPicker';
 import { format } from 'date-fns';
 import {
   AlertDialog,

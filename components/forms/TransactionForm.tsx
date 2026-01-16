@@ -25,7 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import type { Category } from '@/types/database';
-import IconPicker, { CategoryIcon } from './IconPicker';
+import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { Plus } from 'lucide-react';

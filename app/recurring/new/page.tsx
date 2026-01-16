@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import TransactionForm, { TransactionFormData } from '@/app/components/TransactionForm';
+import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
 import { showToast } from '@/lib/toast';
 import type { Category } from '@/types/database';
 

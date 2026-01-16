@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import StatSection from '@/app/components/StatSection';
-import TrendChart from '@/app/components/TrendChart';
+import StatSection from '@/components/charts/StatSection';
+import TrendChart from '@/components/charts/TrendChart';
 
 // Legacy Recharts imports removed
 

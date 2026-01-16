@@ -1,6 +1,6 @@
 'use client';
 
-import TransactionForm from '@/app/components/TransactionForm';
+import TransactionForm from '@/components/forms/TransactionForm';
 import { createClient } from '@/lib/supabase/client';
 import { showToast } from '@/lib/toast';
 import type { Category, Database } from '@/types/database';

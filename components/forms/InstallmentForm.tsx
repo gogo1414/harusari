@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Category } from '@/types/database';
-import { CategoryIcon } from './IconPicker';
+import { CategoryIcon } from '@/components/category/IconPicker';
 import { calculateInstallment } from '@/lib/installment';
 import { formatCurrency } from '@/lib/format';
 import { ko } from 'date-fns/locale';

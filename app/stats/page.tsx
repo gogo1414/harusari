@@ -10,8 +10,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import type { Transaction, Category } from '@/types/database';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
-import StatSection from '@/app/components/StatSection';
-import TrendChart from '@/app/components/TrendChart';
+import StatSection from '@/components/charts/StatSection';
+import TrendChart from '@/components/charts/TrendChart';
 import { getCycleRange, filterByDateRange } from '@/lib/date';
 
 // Remove unused formatBarLabel since it's now part of TrendChart

@@ -9,13 +9,13 @@ import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from
 import { ko } from 'date-fns/locale';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CategoryIcon } from './components/IconPicker';
+import { CategoryIcon } from '@/components/category/IconPicker';
 import type { Category, Transaction } from '@/types/database';
-import Calendar from './components/Calendar';
-import FAB from './components/FAB';
-import { AnimatedMenuIcon } from './components/AnimatedMenuIcon';
-import { AnimatedCurrency } from './components/AnimatedNumber';
-import { CalendarSkeleton, SummaryCardSkeleton } from './components/Skeleton';
+import Calendar from '@/components/calendar/Calendar';
+import FAB from '@/components/common/FAB';
+import { AnimatedMenuIcon } from '@/components/animation/AnimatedMenuIcon';
+import { AnimatedCurrency } from '@/components/animation/AnimatedNumber';
+import { CalendarSkeleton, SummaryCardSkeleton } from '@/components/common/Skeleton';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,

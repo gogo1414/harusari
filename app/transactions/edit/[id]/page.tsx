@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { createClient } from '@/lib/supabase/client';
-import TransactionForm, { TransactionFormData } from '@/app/components/TransactionForm';
+import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
 import { showToast } from '@/lib/toast';
 import { Loader2 } from 'lucide-react';
 import type { Category, Transaction } from '@/types/database';

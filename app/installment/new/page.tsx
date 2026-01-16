@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import InstallmentForm, { InstallmentFormData } from '@/app/components/InstallmentForm';
+import InstallmentForm, { InstallmentFormData } from '@/components/forms/InstallmentForm';
 import { showToast } from '@/lib/toast';
 import type { Category } from '@/types/database';
 import { addMonths } from 'date-fns';

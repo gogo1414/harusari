@@ -8,7 +8,7 @@ import { Edit2, Trash2, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import type { Transaction, Category } from '@/types/database';
-import { CategoryIcon } from './IconPicker';
+import { CategoryIcon } from '@/components/category/IconPicker';
 import { formatCurrency } from '@/lib/format';
 
 type ViewMode = 'date' | 'type';

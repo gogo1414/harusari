@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import type { Category } from '@/types/database';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import IconPicker, { CategoryIcon } from '@/app/components/IconPicker';
+import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
 
 export default function CategoryManagementPage() {
   const router = useRouter();
