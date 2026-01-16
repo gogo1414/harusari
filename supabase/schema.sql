@@ -99,3 +99,22 @@ CREATE POLICY "fixed_transactions_update" ON fixed_transactions
   FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "fixed_transactions_delete" ON fixed_transactions 
   FOR DELETE USING (auth.uid() = user_id);
+-- fixed_transactions 테이블에 할부 관련 컬럼 추가
+-- 이 스크립트를 Supabase SQL Editor에서 실행하세요.
+
+-- 1. 컬럼 추가
+ALTER TABLE fixed_transactions
+ADD COLUMN IF NOT EXISTS is_installment boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS installment_principal integer,      -- 할부 원금
+ADD COLUMN IF NOT EXISTS installment_months integer,         -- 할부 기간 (개월)
+ADD COLUMN IF NOT EXISTS installment_rate numeric(5,2),      -- 연 이자율 (%)
+ADD COLUMN IF NOT EXISTS installment_free_months integer DEFAULT 0, -- 무이자 개월 수
+ADD COLUMN IF NOT EXISTS installment_current_month integer DEFAULT 1; -- 현재 회차 (몇 번째 달인지)
+
+-- 2. 코멘트 추가 (선택 사항)
+COMMENT ON COLUMN fixed_transactions.is_installment IS '할부 결제 여부';
+COMMENT ON COLUMN fixed_transactions.installment_principal IS '할부 원금 총액';
+COMMENT ON COLUMN fixed_transactions.installment_months IS '총 할부 개월 수';
+COMMENT ON COLUMN fixed_transactions.installment_rate IS '할부 연 이자율 (%)';
+COMMENT ON COLUMN fixed_transactions.installment_free_months IS '무이자 적용 개월 수';
+COMMENT ON COLUMN fixed_transactions.installment_current_month IS '현재 납부 회차';

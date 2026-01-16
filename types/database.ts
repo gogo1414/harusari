@@ -105,6 +105,13 @@ export interface Database {
           last_generated: string | null;
           is_active: boolean;
           created_at: string;
+          // 할부 관련 필드
+          is_installment: boolean;
+          installment_principal: number | null;
+          installment_months: number | null;
+          installment_rate: number | null;
+          installment_free_months: number | null;
+          installment_current_month: number | null;
         };
         Insert: {
           fixed_transaction_id?: string;
@@ -119,6 +126,13 @@ export interface Database {
           last_generated?: string | null;
           is_active?: boolean;
           created_at?: string;
+          // 할부 관련 필드
+          is_installment?: boolean;
+          installment_principal?: number | null;
+          installment_months?: number | null;
+          installment_rate?: number | null;
+          installment_free_months?: number | null;
+          installment_current_month?: number | null;
         };
         Update: {
           amount?: number;
@@ -130,6 +144,13 @@ export interface Database {
           end_date?: string | null;
           last_generated?: string | null;
           is_active?: boolean;
+          // 할부 관련 필드
+          is_installment?: boolean;
+          installment_principal?: number | null;
+          installment_months?: number | null;
+          installment_rate?: number | null;
+          installment_free_months?: number | null;
+          installment_current_month?: number | null;
         };
       };
     };
