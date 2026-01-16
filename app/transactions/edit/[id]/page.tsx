@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/app/components/TransactionForm';
 import { showToast } from '@/lib/toast';
@@ -47,7 +48,7 @@ export default function EditTransactionPage() {
         // @ts-expect-error - Supabase update 타입 불일치
         .update({
           type: formData.type,
-          date: formData.date.toISOString().split('T')[0],
+          date: format(formData.date, 'yyyy-MM-dd'),
           amount: formData.amount,
           category_id: formData.category_id,
           memo: formData.memo,

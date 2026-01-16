@@ -2,6 +2,7 @@
 
 import TransactionForm from '@/app/components/TransactionForm';
 import { createClient } from '@/lib/supabase/client';
+import { showToast } from '@/lib/toast';
 import type { Category, Database } from '@/types/database';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -97,12 +98,13 @@ function NewTransactionContent() {
     onSuccess: () => {
       // 쿼리 무효화 및 이동
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      showToast.transactionSaved();
       router.back(); 
       router.refresh(); 
     },
     onError: (error) => {
       console.error('Error saving transaction:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      showToast.error('저장 중 오류가 발생했습니다.');
     },
   });
 
