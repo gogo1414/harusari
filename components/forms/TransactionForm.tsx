@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { CalendarIcon, Check, ChevronLeft, Repeat as RepeatIcon, Loader2, CreditCard, Calculator } from 'lucide-react';
+import { CalendarIcon, Check, ChevronLeft, Repeat as RepeatIcon, Loader2, CreditCard, Calculator, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -12,17 +12,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -34,13 +25,14 @@ import { calculateInstallment } from '@/lib/installment';
 import { formatCurrency } from '@/lib/format';
 import { useRouter } from 'next/navigation';
 import type { Category } from '@/types/database';
-import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
+import { CategoryIcon } from '@/components/category/IconPicker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import { Plus } from 'lucide-react';
 import SegmentedControl from '@/components/common/SegmentedControl';
 import OptionCard, { OptionCardWithSwitch } from '@/components/common/OptionCard';
 import ToggleButton from '@/components/common/ToggleButton';
+import CategorySelectDialog from '@/components/forms/transaction/CategorySelectDialog';
+import AddCategoryDialog from '@/components/forms/transaction/AddCategoryDialog';
 
 export interface TransactionFormData {
   type: 'income' | 'expense';
@@ -116,9 +108,6 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   const supabase = createClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCategorySelectOpen, setIsCategorySelectOpen] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState('money');
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   const addCategoryMutation = useMutation({
     mutationFn: async (newCategory: { name: string; icon: string; type: string }) => {
@@ -137,16 +126,13 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsAddDialogOpen(false);
-      setNewCatName('');
-      setNewCatIcon('money');
     },
   });
 
-  const handleAddCategory = () => {
-    if (!newCatName) return;
+  const handleAddCategory = (name: string, icon: string) => {
     addCategoryMutation.mutate({
-      name: newCatName,
-      icon: newCatIcon,
+      name,
+      icon,
       type, // 현재 선택된 탭(지출/수입)의 카테고리로 추가
     });
   };
@@ -495,132 +481,26 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
       </div>
 
       {/* 카테고리 선택 다이얼로그 */}
-      <Dialog open={isCategorySelectOpen} onOpenChange={setIsCategorySelectOpen}>
-        <DialogContent className="sm:max-w-md rounded-3xl max-h-[80vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b">
-            <DialogTitle className="text-center text-lg font-bold">
-              카테고리 선택
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-4 gap-x-2 gap-y-4">
-              {filteredCategories.map((cat) => (
-                <button
-                  key={cat.category_id}
-                  type="button"
-                  onClick={() => {
-                    setCategoryId(cat.category_id);
-                    setIsCategorySelectOpen(false);
-                  }}
-                  className="flex flex-col items-center gap-2 group"
-                >
-                  <div className="relative transition-transform active:scale-95 duration-200">
-                    <CategoryIcon
-                      iconName={cat.icon}
-                      className={cn(
-                        "h-14 w-14 transition-all duration-300",
-                        categoryId === cat.category_id
-                          ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg scale-105 opacity-100"
-                          : "opacity-60 hover:opacity-100 active:opacity-100"
-                      )}
-                      variant="circle"
-                      showBackground={true}
-                    />
-                    {categoryId === cat.category_id && (
-                      <div className="absolute -right-0 -bottom-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow ring-2 ring-background animate-in zoom-in">
-                        <Check className="h-3 w-3" strokeWidth={4} />
-                      </div>
-                    )}
-                  </div>
-                  <span className={cn(
-                    "text-[12px] font-medium truncate w-full text-center transition-colors",
-                    categoryId === cat.category_id ? "text-primary font-bold" : "text-muted-foreground"
-                  )}>
-                    {cat.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-4 border-t bg-muted/30">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-12 rounded-2xl bg-background hover:bg-muted border-dashed border-2"
-              onClick={() => {
-                setIsCategorySelectOpen(false);
-                setNewCatName('');
-                setNewCatIcon('money');
-                setIsAddDialogOpen(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              새 카테고리 추가
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CategorySelectDialog
+          open={isCategorySelectOpen}
+          onOpenChange={setIsCategorySelectOpen}
+          categories={filteredCategories}
+          selectedCategoryId={categoryId}
+          onSelect={setCategoryId}
+          onAddNew={() => {
+              setIsCategorySelectOpen(false);
+              setIsAddDialogOpen(true);
+          }}
+      />
 
       {/* 카테고리 추가 다이얼로그 */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-center text-lg font-bold">
-              새 {type === 'income' ? '수입' : '지출'} 카테고리
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="grid gap-6 py-6">
-            <div className="flex flex-col items-center gap-4">
-              <Label className="text-muted-foreground text-xs">아이콘을 선택하세요</Label>
-              <button
-                onClick={() => setIsIconPickerOpen(true)}
-                className="transition-transform hover:scale-105 focus:outline-none"
-              >
-                <CategoryIcon 
-                  iconName={newCatIcon} 
-                  className="h-20 w-20 shadow-sm" 
-                  variant="squircle" 
-                  showBackground={true} 
-                />
-              </button>
-              
-              <IconPicker 
-                isOpen={isIconPickerOpen}
-                onClose={() => setIsIconPickerOpen(false)}
-                onSelect={(newIcon) => setNewCatIcon(newIcon)}
-                currentIcon={newCatIcon}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="new-cat-name" className="text-muted-foreground text-xs">이름</Label>
-              <Input
-                id="new-cat-name"
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                placeholder="카테고리 이름"
-                className="h-12 rounded-xl text-lg font-medium bg-muted/30 border-none"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" className="h-12 w-full rounded-xl text-base border-none bg-muted/50 hover:bg-muted">취소</Button>
-            </DialogClose>
-            <Button 
-              onClick={handleAddCategory} 
-              disabled={!newCatName || addCategoryMutation.isPending}
-              className="h-12 w-full rounded-xl text-base font-bold shadow-lg shadow-primary/20"
-            >
-              {addCategoryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '추가하기'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddCategoryDialog
+          open={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          type={type}
+          onAdd={handleAddCategory}
+          isPending={addCategoryMutation.isPending}
+      />
     </div>
   );
 }
