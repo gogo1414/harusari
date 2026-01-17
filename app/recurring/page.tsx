@@ -193,7 +193,14 @@ export default function RecurringPage() {
                     variant="ghost"
                     size="icon"
                     className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all"
-                    onClick={() => router.push(`/recurring/edit/${item.fixed_transaction_id}`)}
+                    onClick={() => {
+                      // 할부 여부에 따라 라우팅 분기
+                      if (item.is_installment) {
+                        router.push(`/installment/edit/${item.fixed_transaction_id}`);
+                      } else {
+                        router.push(`/recurring/edit/${item.fixed_transaction_id}`);
+                      }
+                    }}
                     aria-label="고정 내역 수정"
                   >
                     <Edit2 className="h-4 w-4" />

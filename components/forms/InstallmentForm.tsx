@@ -46,6 +46,8 @@ interface InstallmentFormProps {
   onSubmit: (data: InstallmentFormData) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  initialData?: InstallmentFormData;
+  isEditMode?: boolean;
 }
 
 const MONTH_OPTIONS = [2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36, 48, 60];
@@ -54,20 +56,24 @@ export default function InstallmentForm({
   categories,
   onSubmit,
   onCancel,
-  isSubmitting = false
+  isSubmitting = false,
+  initialData,
+  isEditMode = false,
 }: InstallmentFormProps) {
   const [formData, setFormData] = useState<InstallmentFormData>({
-    date: new Date(),
-    principal: 0,
-    months: 3,
-    annualRate: 0,
-    interestFreeMonths: 0,
-    category_id: categories[0]?.category_id || '',
-    memo: ''
+    date: initialData?.date || new Date(),
+    principal: initialData?.principal || 0,
+    months: initialData?.months || 3,
+    annualRate: initialData?.annualRate || 0,
+    interestFreeMonths: initialData?.interestFreeMonths || 0,
+    category_id: initialData?.category_id || categories[0]?.category_id || '',
+    memo: initialData?.memo || '',
   });
 
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [amountString, setAmountString] = useState('');
+  const [amountString, setAmountString] = useState(
+    initialData?.principal ? initialData.principal.toLocaleString() : ''
+  );
 
   // 입력값 변경 시 자동 계산 (useMemo)
   const calculation = useMemo(() => {
@@ -121,7 +127,7 @@ export default function InstallmentForm({
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
-        <h1 className="text-xl font-bold">할부 등록</h1>
+        <h1 className="text-xl font-bold">{isEditMode ? '할부 수정' : '할부 등록'}</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 pb-32 space-y-8">
@@ -297,7 +303,7 @@ export default function InstallmentForm({
                <span className="animate-spin text-xl">⏳</span> 저장 중...
              </span>
           ) : (
-             '할부 등록하기'
+             isEditMode ? '할부 수정하기' : '할부 등록하기'
           )}
         </Button>
       </div>

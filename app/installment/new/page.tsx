@@ -7,6 +7,7 @@ import InstallmentForm, { InstallmentFormData } from '@/components/forms/Install
 import { showToast } from '@/lib/toast';
 import type { Category } from '@/types/database';
 import { addMonths } from 'date-fns';
+import { calculateInstallment } from '@/lib/installment';
 
 export default function NewInstallmentPage() {
   const router = useRouter();
@@ -33,6 +34,15 @@ export default function NewInstallmentPage() {
       // 종료일 계산: 시작일로부터 할부 개월 수만큼 뒤의 날짜
       const endDate = addMonths(formData.date, formData.months);
 
+      // 첫 달 납입금 계산 (amount > 0 CHECK 제약 조건 만족을 위해)
+      const installmentResult = calculateInstallment({
+        principal: formData.principal,
+        months: formData.months,
+        annualRate: formData.annualRate,
+        interestFreeMonths: formData.interestFreeMonths
+      });
+      const firstMonthPayment = installmentResult.monthlyPayment;
+
       const { error } = await supabase
         .from('fixed_transactions')
         // @ts-expect-error - Supabase insert 타입 불일치 (할부 필드 추가됨)
@@ -40,12 +50,7 @@ export default function NewInstallmentPage() {
           user_id: user.id,
           type: 'expense', // 할부는 무조건 지출
           day: day,
-          amount: 0, // 고정 금액은 0 (매달 계산되므로, 혹은 첫달 금액 넣을 수도 있음. 여기선 0으로 하고 로직에서 처리)
-                     // 하지만 '월 납입금'을 대략적으로라도 보여주려면 첫달 금액을 넣는게 좋을 수 있음.
-                     // 여기서는 일단 0으로 넣고, 스케줄 생성 시 installment 유틸리티를 쓰도록 함.
-                     // 또는, 매달 똑같은 금액이 나가는게 아니므로(이자 때문에),
-                     // amount 필드는 '원금균등'일 경우 큰 의미가 없을 수 있음.
-                     // 하지만 list 뷰에서 보여줄 때 필요하므로, 첫 달 납입금을 저장하는 것이 좋겠음.
+          amount: firstMonthPayment, // 첫 달 납입금 저장 (목록에서 표시용 및 CHECK 제약조건 만족)
           
           category_id: formData.category_id,
           memo: `${formData.memo} (할부 1/${formData.months})`, // 초기 메모
