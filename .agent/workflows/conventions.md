@@ -133,6 +133,69 @@ ComponentName/
 
 ---
 
+## 컴포넌트 설계 및 리팩토링 원칙
+
+### 1. Monolithic JSX 지양 (Declarative Composition)
+페이지나 폼 컴포넌트의 `return` 문 내부에는 `div`, `section` 등의 Raw HTML 태그가 길게 나열되는 것을 피하고, **의미 있는 단위의 하위 컴포넌트(Sub-components)** 로 추상화하여 구성해야 합니다.
+
+**작성 규칙:**
+- **의미적 분리**: UI의 각 섹션(헤더, 입력 필드 그룹, 요약 카드 등)을 별도 컴포넌트로 분리
+- **조립형 구조**: 상위 컴포넌트는 로직(State, Handler)을 관리하고, `return` 문에서는 하위 컴포넌트들을 조립(Composition)하는 역할만 수행
+- **유지보수성**: 특정 섹션을 수정할 때, 전체 파일을 열지 않고 해당 하위 컴포넌트만 수정하도록 격리
+
+**Bad Case:**
+```tsx
+// 모든 마크업이 한 파일에 노출됨
+return (
+  <form>
+    <div className="header">
+      <button>Back</button>
+      <h1>Title</h1>
+    </div>
+    <div className="input-section">
+      <input type="text" />
+      ...
+    </div>
+  </form>
+);
+```
+
+**Good Case:**
+```tsx
+// 의미 있는 컴포넌트의 조합으로 표현
+return (
+  <form>
+    <FormHeader />
+    <AmountInputSection />
+    <OptionConfigSection />
+    <SubmitButton />
+  </form>
+);
+```
+
+---
+
+## 스타일 컨벤션
+
+### 기본 원칙
+- **Tailwind CSS**를 기본 스타일링 도구로 사용
+- 복잡한 조건부 스타일링은 **CVA (Class Variance Authority)** 활용
+- 클래스 병합은 **`cn` 유틸리티** (`clsx` + `tailwind-merge`) 사용
+
+### 스타일 파일 구조 (`lib/styles/`)
+| 파일 | 용도 | 예시 |
+|------|------|------|
+| `variants.ts` | CVA 변형(variant) 정의 모음 | `cardVariants`, `buttonVariants` |
+| `constants.ts` | 공통 Tailwind 클래스 상수 | `CARD_BASE_STYLE`, `INPUT_STYLE` |
+| `index.ts` | 스타일 모듈 배럴 익스포트 | `export * from './variants'` |
+
+### 작성 규칙
+1. **인라인 스타일 지양**: 의미 있는 단위는 컴포넌트로 추출하거나 CVA 변형으로 정의
+2. **조건부 스타일**: 삼항 연산자보다 `cn()`과 객체/조건문 활용 권장
+3. **색상**: 하드코딩된 색상 대신 Tailwind Theme 색상 (`bg-primary`, `text-muted-foreground`) 사용
+
+---
+
 ## 미사용 코드 관리
 
 - **정기 검토**: 매 릴리스 전 미사용 파일 검토
