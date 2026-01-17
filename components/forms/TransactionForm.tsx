@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { CalendarIcon, Check, ChevronLeft, Repeat as RepeatIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Check, ChevronLeft, Repeat as RepeatIcon, Loader2, CreditCard, Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -23,6 +23,15 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { calculateInstallment } from '@/lib/installment';
+import { formatCurrency } from '@/lib/format';
 import { useRouter } from 'next/navigation';
 import type { Category } from '@/types/database';
 import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
@@ -39,6 +48,11 @@ export interface TransactionFormData {
   is_recurring: boolean;
   end_type: 'never' | 'date';
   end_date?: Date;
+  // 할부 관련 필드
+  is_installment?: boolean;
+  installment_months?: number;
+  installment_rate?: number;
+  installment_free_months?: number;
 }
 
 interface TransactionFormProps {
@@ -60,9 +74,32 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   const [isRecurring, setIsRecurring] = useState(initialData?.is_recurring || false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // 금액에서 콤마 제거 후 숫자로 변환
+  const getRawAmount = () => {
+    return amount ? parseInt(amount.replace(/,/g, ''), 10) : 0;
+  };
+
   // 고정 지출 옵션
   const [endType, setEndType] = useState<'never' | 'date'>(initialData?.end_type || 'never');
   const [endDate, setEndDate] = useState<Date | undefined>(initialData?.end_date ? new Date(initialData.end_date) : undefined);
+
+  // 할부 관련 state
+  const [paymentType, setPaymentType] = useState<'lumpsum' | 'installment'>(
+    initialData?.is_installment ? 'installment' : 'lumpsum'
+  );
+  const [installmentMonths, setInstallmentMonths] = useState(initialData?.installment_months || 3);
+  const [annualRate, setAnnualRate] = useState(initialData?.installment_rate || 0);
+  const [interestFreeMonths, setInterestFreeMonths] = useState(initialData?.installment_free_months || 0);
+
+  // 할부 선택 시 미리보기 계산
+  const installmentPreview = paymentType === 'installment' && getRawAmount() > 0
+    ? calculateInstallment({
+        principal: getRawAmount(),
+        months: installmentMonths,
+        annualRate,
+        interestFreeMonths,
+      })
+    : null;
 
   // initialDate 변경 시 state 업데이트 (useEffect 필요)
   useEffect(() => {
@@ -75,6 +112,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   const queryClient = useQueryClient();
   const supabase = createClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCategorySelectOpen, setIsCategorySelectOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('money');
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
@@ -111,6 +149,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   };
 
   const filteredCategories = categories.filter((c) => c.type === type);
+  const selectedCategory = categories.find((c) => c.category_id === categoryId);
 
   // 금액 포맷팅 (콤마 추가)
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,10 +159,6 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
     } else {
       setAmount('');
     }
-  };
-
-  const getRawAmount = () => {
-    return amount ? parseInt(amount.replace(/,/g, ''), 10) : 0;
   };
 
   const handleSubmit = async () => {
@@ -140,6 +175,11 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
         is_recurring: isRecurring,
         end_type: endType,
         end_date: endDate,
+        // 할부 관련 필드
+        is_installment: paymentType === 'installment',
+        installment_months: paymentType === 'installment' ? installmentMonths : undefined,
+        installment_rate: paymentType === 'installment' ? annualRate : undefined,
+        installment_free_months: paymentType === 'installment' ? interestFreeMonths : undefined,
       });
     } catch (error) {
       console.error(error);
@@ -242,56 +282,37 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
 
         {/* 카테고리 선택 */}
         <div>
-           <div className="flex items-center justify-between mb-3 px-1">
-             <label className="text-[13px] font-bold text-muted-foreground">카테고리</label>
-             <Button
-               variant="ghost"
-               size="sm"
-               className="h-6 px-2 text-xs font-semibold text-primary hover:bg-primary/10 rounded-full"
-               onClick={() => {
-                  setNewCatName('');
-                  setNewCatIcon('money');
-                  setIsAddDialogOpen(true);
-               }}
-             >
-               <Plus className="mr-1 h-3 w-3" />
-               추가
-             </Button>
-           </div>
-           <div className="grid grid-cols-4 gap-x-2 gap-y-4">
-             {filteredCategories.map((cat) => (
-               <button
-                 key={cat.category_id}
-                 onClick={() => setCategoryId(cat.category_id)}
-                 className="flex flex-col items-center gap-2 group"
-               >
-                 <div className="relative transition-transform active:scale-95 duration-200">
-                    <CategoryIcon 
-                      iconName={cat.icon} 
-                      className={cn(
-                        "h-14 w-14 transition-all duration-300", 
-                        categoryId === cat.category_id 
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg scale-105 opacity-100" 
-                            : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0 active:scale-95 active:opacity-100 active:grayscale-0"
-                      )} 
-                      variant="circle" 
-                      showBackground={true} 
-                    />
-                    {categoryId === cat.category_id && (
-                      <div className="absolute -right-0 -bottom-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow ring-2 ring-background animate-in zoom-in">
-                        <Check className="h-3 w-3" strokeWidth={4} />
-                      </div>
-                    )}
-                 </div>
-                 <span className={cn(
-                   "text-[12px] font-medium truncate w-full text-center transition-colors",
-                   categoryId === cat.category_id ? "text-primary font-bold" : "text-muted-foreground"
-                 )}>
-                   {cat.name}
-                 </span>
-               </button>
-             ))}
-           </div>
+          <label className="text-[13px] font-bold text-muted-foreground ml-1 mb-2 block">카테고리</label>
+          <button
+            type="button"
+            onClick={() => setIsCategorySelectOpen(true)}
+            className={cn(
+              "w-full flex items-center gap-4 rounded-2xl border p-4 transition-all",
+              selectedCategory
+                ? "bg-card border-primary/30 shadow-sm"
+                : "bg-muted/30 border-border hover:bg-muted/50"
+            )}
+          >
+            {selectedCategory ? (
+              <>
+                <CategoryIcon
+                  iconName={selectedCategory.icon}
+                  className="h-12 w-12"
+                  variant="circle"
+                  showBackground={true}
+                />
+                <span className="font-bold text-lg">{selectedCategory.name}</span>
+              </>
+            ) : (
+              <>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <span className="text-muted-foreground font-medium">카테고리 선택</span>
+              </>
+            )}
+            <ChevronLeft className="ml-auto h-5 w-5 text-muted-foreground rotate-180" />
+          </button>
         </div>
 
         {/* 메모 */}
@@ -305,68 +326,207 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           />
         </div>
 
-        {/* 고정 지출 설정 */}
-        <div className={cn(
-          "rounded-2xl p-5 space-y-4 transition-all duration-300 bg-card shadow-md",
-          isRecurring 
-            ? "ring-2 ring-primary shadow-lg shadow-primary/20" 
-            : "ring-1 ring-border/80"
-        )}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        {/* 결제 방식 섹션 (지출일 때만 표시) */}
+        {type === 'expense' && (
+          <div className={cn(
+            "rounded-2xl p-5 space-y-4 transition-all duration-300 bg-card shadow-md",
+            paymentType === 'installment'
+              ? "ring-2 ring-primary shadow-lg shadow-primary/20"
+              : "ring-1 ring-border/80"
+          )}>
+            <div className="flex items-center gap-3 mb-4">
               <div className={cn(
                 "flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300",
-                isRecurring 
-                  ? "bg-primary text-white shadow-lg shadow-primary/30" 
+                paymentType === 'installment'
+                  ? "bg-primary text-white shadow-lg shadow-primary/30"
                   : "bg-secondary text-primary"
               )}>
-                <RepeatIcon className="h-5 w-5" strokeWidth={2.5} />
+                <CreditCard className="h-5 w-5" strokeWidth={2.5} />
               </div>
-              <div className="flex flex-col">
-                <Label htmlFor="recurring" className="text-base font-bold cursor-pointer">반복 설정</Label>
-                <p className="text-xs text-muted-foreground font-medium">매월 자동으로 기록할까요?</p>
+              <div>
+                <Label className="text-base font-bold">결제 방식</Label>
+                <p className="text-xs text-muted-foreground font-medium">일시불 또는 할부를 선택하세요</p>
               </div>
             </div>
-            <Switch
-              id="recurring"
-              checked={isRecurring}
-              onCheckedChange={isRecurringFixed ? undefined : setIsRecurring}
-              disabled={isRecurringFixed}
-              className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary scale-110"
-            />
+
+            {/* 일시불/할부 선택 */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentType('lumpsum')}
+                className={cn(
+                  "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
+                  paymentType === 'lumpsum'
+                    ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                일시불
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentType('installment')}
+                className={cn(
+                  "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
+                  paymentType === 'installment'
+                    ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                할부 결제
+              </button>
+            </div>
+
+            {/* 할부 옵션 (할부 선택 시) */}
+            {paymentType === 'installment' && (
+              <div className="space-y-4 pt-2 animate-in slide-in-from-top-2 fade-in duration-300">
+                {/* 할부 기간 */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground font-bold">할부 기간</Label>
+                  <Select
+                    value={installmentMonths.toString()}
+                    onValueChange={(val) => setInstallmentMonths(parseInt(val))}
+                  >
+                    <SelectTrigger className="h-12 rounded-xl border-border bg-background text-base font-medium">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2, 3, 4, 5, 6, 9, 10, 12, 18, 24, 36].map((m) => (
+                        <SelectItem key={m} value={m.toString()}>{m}개월</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 이자율 & 무이자 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground font-bold">연 이자율 (%)</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={annualRate}
+                        onChange={(e) => setAnnualRate(parseFloat(e.target.value) || 0)}
+                        className="h-12 rounded-xl bg-background text-base font-medium pr-8"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground font-bold">무이자 개월</Label>
+                    <Select
+                      value={interestFreeMonths.toString()}
+                      onValueChange={(val) => setInterestFreeMonths(parseInt(val))}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl border-border bg-background text-base font-medium">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">없음</SelectItem>
+                        {Array.from({ length: installmentMonths }, (_, i) => i + 1).map((m) => (
+                          <SelectItem key={m} value={m.toString()}>
+                            {m === installmentMonths ? '전액 무이자' : `${m}개월`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* 예상 납입금 미리보기 */}
+                {installmentPreview && (
+                  <div className="bg-primary/5 rounded-2xl p-4 space-y-2 border border-primary/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calculator className="w-4 h-4 text-primary" />
+                      <span className="font-bold text-sm text-primary">예상 납입금</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <span className="text-sm text-muted-foreground">월 납입금 (1회차)</span>
+                      <span className="text-xl font-extrabold text-foreground">
+                        {formatCurrency(installmentPreview.monthlyPayment)}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t border-primary/10 flex justify-between text-sm">
+                      <span className="text-muted-foreground">총 이자</span>
+                      <span className="font-bold text-expense">+{formatCurrency(installmentPreview.totalInterest)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">총 납부액</span>
+                      <span className="font-bold">{formatCurrency(installmentPreview.totalPayment)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+        )}
 
-          {isRecurring && (
-            <div className="pt-2 pl-1 space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
-               <div className="bg-background rounded-2xl p-4 shadow-sm">
-                 <Label className="text-xs text-muted-foreground mb-3 block font-bold">종료일</Label>
-                 <div className="flex gap-2">
-                   <button
-                     onClick={() => setEndType('never')}
-                     className={cn(
-                       "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
-                       endType === 'never' 
-                         ? "bg-primary/10 text-primary ring-1 ring-primary/20" 
-                         : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                     )}
-                   >
-                     계속 반복
-                   </button>
-                   <button
-                    onClick={() => setEndType('date')}
-                     className={cn(
-                       "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
-                       endType === 'date' 
-                         ? "bg-primary/10 text-primary ring-1 ring-primary/20" 
-                         : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                     )}
-                   >
-                     날짜 지정
-                   </button>
-                 </div>
+        {/* 고정 지출 설정 (할부가 아닐 때만 표시) */}
+        {paymentType !== 'installment' && (
+          <div className={cn(
+            "rounded-2xl p-5 space-y-4 transition-all duration-300 bg-card shadow-md",
+            isRecurring 
+              ? "ring-2 ring-primary shadow-lg shadow-primary/20" 
+              : "ring-1 ring-border/80"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300",
+                  isRecurring 
+                    ? "bg-primary text-white shadow-lg shadow-primary/30" 
+                    : "bg-secondary text-primary"
+                )}>
+                  <RepeatIcon className="h-5 w-5" strokeWidth={2.5} />
+                </div>
+                <div className="flex flex-col">
+                  <Label htmlFor="recurring" className="text-base font-bold cursor-pointer">반복 설정</Label>
+                  <p className="text-xs text-muted-foreground font-medium">매월 자동으로 기록할까요?</p>
+                </div>
+              </div>
+              <Switch
+                id="recurring"
+                checked={isRecurring}
+                onCheckedChange={isRecurringFixed ? undefined : setIsRecurring}
+                disabled={isRecurringFixed}
+                className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary scale-110"
+              />
+            </div>
 
-                 {endType === 'date' && (
-                   <div className="mt-3 animate-in fade-in pt-1">
+            {isRecurring && (
+              <div className="pt-2 pl-1 space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="bg-background rounded-2xl p-4 shadow-sm">
+                  <Label className="text-xs text-muted-foreground mb-3 block font-bold">종료일</Label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEndType('never')}
+                      className={cn(
+                        "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
+                        endType === 'never' 
+                          ? "bg-primary/10 text-primary ring-1 ring-primary/20" 
+                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      계속 반복
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEndType('date')}
+                      className={cn(
+                        "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
+                        endType === 'date' 
+                          ? "bg-primary/10 text-primary ring-1 ring-primary/20" 
+                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      날짜 지정
+                    </button>
+                  </div>
+
+                  {endType === 'date' && (
+                    <div className="mt-3 animate-in fade-in pt-1">
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -385,18 +545,19 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
                             mode="single"
                             selected={endDate}
                             onSelect={setEndDate}
-                            disabled={(date) => date < new Date()}
+                            disabled={(d) => d < new Date()}
                             initialFocus
                             className="rounded-2xl"
                           />
                         </PopoverContent>
                       </Popover>
-                   </div>
-                 )}
-               </div>
-            </div>
-          )}
-        </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="p-4 bg-background/80 backdrop-blur-md sticky bottom-0 z-20">
@@ -421,6 +582,75 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           )}
         </Button>
       </div>
+
+      {/* 카테고리 선택 다이얼로그 */}
+      <Dialog open={isCategorySelectOpen} onOpenChange={setIsCategorySelectOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl max-h-[80vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="text-center text-lg font-bold">
+              카테고리 선택
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid grid-cols-4 gap-x-2 gap-y-4">
+              {filteredCategories.map((cat) => (
+                <button
+                  key={cat.category_id}
+                  type="button"
+                  onClick={() => {
+                    setCategoryId(cat.category_id);
+                    setIsCategorySelectOpen(false);
+                  }}
+                  className="flex flex-col items-center gap-2 group"
+                >
+                  <div className="relative transition-transform active:scale-95 duration-200">
+                    <CategoryIcon
+                      iconName={cat.icon}
+                      className={cn(
+                        "h-14 w-14 transition-all duration-300",
+                        categoryId === cat.category_id
+                          ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg scale-105 opacity-100"
+                          : "opacity-60 hover:opacity-100 active:opacity-100"
+                      )}
+                      variant="circle"
+                      showBackground={true}
+                    />
+                    {categoryId === cat.category_id && (
+                      <div className="absolute -right-0 -bottom-0 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white shadow ring-2 ring-background animate-in zoom-in">
+                        <Check className="h-3 w-3" strokeWidth={4} />
+                      </div>
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-[12px] font-medium truncate w-full text-center transition-colors",
+                    categoryId === cat.category_id ? "text-primary font-bold" : "text-muted-foreground"
+                  )}>
+                    {cat.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 border-t bg-muted/30">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 rounded-2xl bg-background hover:bg-muted border-dashed border-2"
+              onClick={() => {
+                setIsCategorySelectOpen(false);
+                setNewCatName('');
+                setNewCatIcon('money');
+                setIsAddDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              새 카테고리 추가
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 카테고리 추가 다이얼로그 */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
