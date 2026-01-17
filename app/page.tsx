@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
-import { LogOut, List, Repeat, BarChart3, Settings, Trash2, Edit2, Calculator } from 'lucide-react';
+import { LogOut, List, Repeat, BarChart3, Settings, Trash2, Edit2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -123,7 +123,7 @@ export default function HomePage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isTypeSheetOpen, setIsTypeSheetOpen] = useState(false);
+
   // 삭제 다이얼로그 상태
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
@@ -199,10 +199,7 @@ export default function HomePage() {
     router.push(`/transactions/edit/${id}`);
   };
 
-  // 타입별 목록 보기
-  const handleTypeClick = () => {
-    setIsTypeSheetOpen(true);
-  };
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -253,8 +250,7 @@ export default function HomePage() {
           setDeleteDialogOpen(false);
         } else if (selectedDate) {
           setSelectedDate(null);
-        } else if (isTypeSheetOpen) {
-          setIsTypeSheetOpen(false);
+
         } else if (isMenuOpen) {
           setIsMenuOpen(false);
         }
@@ -263,7 +259,7 @@ export default function HomePage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [router, deleteDialogOpen, selectedDate, isTypeSheetOpen, isMenuOpen]);
+  }, [router, deleteDialogOpen, selectedDate, isMenuOpen]);
 
   return (
     <main className="flex min-h-dvh flex-col bg-background font-sans">
@@ -307,15 +303,6 @@ export default function HomePage() {
                           </motion.div>
 
                           <motion.div custom={2} variants={menuItemVariants} initial="hidden" animate="visible">
-                            <Link href="/installment/new" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/installment/new' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
-                              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/installment/new' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
-                                 <Calculator className={`h-6 w-6 ${pathname === '/installment/new' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
-                              </div>
-                              <span className={`font-bold text-lg ${pathname === '/installment/new' ? 'text-primary' : 'text-foreground/90'}`}>할부 등록</span>
-                            </Link>
-                          </motion.div>
-
-                          <motion.div custom={3} variants={menuItemVariants} initial="hidden" animate="visible">
                             <Link href="/stats" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/stats' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
                               <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/stats' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
                                  <BarChart3 className={`h-6 w-6 ${pathname === '/stats' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
@@ -324,7 +311,7 @@ export default function HomePage() {
                             </Link>
                           </motion.div>
 
-                          <motion.div custom={4} variants={menuItemVariants} initial="hidden" animate="visible">
+                          <motion.div custom={3} variants={menuItemVariants} initial="hidden" animate="visible">
                             <Link href="/settings" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/settings' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
                               <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
                                  <Settings className={`h-6 w-6 ${pathname === '/settings' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
@@ -404,10 +391,8 @@ export default function HomePage() {
             <SummaryCardSkeleton />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <button
-                onClick={handleTypeClick}
-                className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-income/30 transition-all text-left active:scale-[0.98]"
-                aria-label={`수입 ${monthlyStats.income.toLocaleString()}원 보기`}
+              <div
+                className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden"
               >
                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" aria-hidden="true">
                    <span className="text-3xl sm:text-4xl text-income">↘</span>
@@ -417,12 +402,10 @@ export default function HomePage() {
                    <span className="text-income">+</span>
                    <AnimatedCurrency value={monthlyStats.income} type="income" />
                  </p>
-              </button>
+              </div>
 
-              <button
-                onClick={handleTypeClick}
-                className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden group hover:shadow-md hover:ring-expense/30 transition-all text-left active:scale-[0.98]"
-                aria-label={`지출 ${monthlyStats.expense.toLocaleString()}원 보기`}
+              <div
+                className="rounded-[24px] bg-card p-4 sm:p-5 shadow-sm ring-1 ring-black/5 dark:ring-white/5 flex flex-col justify-between h-[100px] sm:h-[110px] relative overflow-hidden"
               >
                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" aria-hidden="true">
                     <span className="text-3xl sm:text-4xl text-expense">↗</span>
@@ -432,7 +415,7 @@ export default function HomePage() {
                    <span className="text-expense">-</span>
                    <AnimatedCurrency value={monthlyStats.expense} type="expense" />
                  </p>
-              </button>
+              </div>
             </div>
           )}
         </div>
