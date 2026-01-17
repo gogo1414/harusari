@@ -203,7 +203,7 @@ export default function InstallmentForm({
 
         {/* 계산 결과 미리보기 */}
         {calculation && (
-          <div className="bg-primary/5 rounded-[24px] p-5 space-y-3 border border-primary/10">
+          <div className="bg-primary/5 rounded-2xl p-5 space-y-3 border border-primary/10">
             <div className="flex items-center gap-2 mb-1">
                 <Calculator className="w-5 h-5 text-primary" />
                 <span className="font-bold text-primary">예상 납입금</span>
@@ -236,7 +236,7 @@ export default function InstallmentForm({
                 <button
                     type="button"
                     onClick={() => setIsCategoryOpen(true)}
-                    className="flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm hover:bg-muted/50 transition-colors"
+                    className="flex w-full items-center gap-3 rounded-2xl border bg-card px-4 py-3 text-left shadow-sm hover:bg-muted/50 transition-colors"
                 >
                     <CategoryIcon
                         iconName={currentCategory?.icon || 'help_circle'}

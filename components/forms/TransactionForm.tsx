@@ -20,7 +20,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
+
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,6 +38,9 @@ import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { Plus } from 'lucide-react';
+import SegmentedControl from '@/components/common/SegmentedControl';
+import OptionCard, { OptionCardWithSwitch } from '@/components/common/OptionCard';
+import ToggleButton from '@/components/common/ToggleButton';
 
 export interface TransactionFormData {
   type: 'income' | 'expense';
@@ -201,37 +204,18 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
 
       <div className="flex-1 px-5 py-2 space-y-8">
         {/* 수입/지출 선택 */}
-        <div className="flex justify-center">
-            <div className="grid grid-cols-2 gap-0 rounded-[20px] bg-muted/60 p-1.5 w-full max-w-[280px]">
-              <button
-                onClick={() => {
-                  setType('expense');
-                  setCategoryId(null);
-                }}
-                className={cn(
-                  "rounded-2xl py-2.5 text-sm font-bold transition-all duration-300",
-                  type === 'expense' 
-                    ? "bg-white dark:bg-card text-expense shadow-sm" 
-                    : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
-                )}
-              >
-                지출
-              </button>
-              <button
-                onClick={() => {
-                  setType('income');
-                  setCategoryId(null);
-                }}
-                className={cn(
-                  "rounded-2xl py-2.5 text-sm font-bold transition-all duration-300",
-                  type === 'income' 
-                    ? "bg-white dark:bg-card text-income shadow-sm" 
-                    : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
-                )}
-              >
-                수입
-              </button>
-            </div>
+        <div className="flex justify-center pb-2">
+          <SegmentedControl
+            value={type}
+            onChange={(val) => {
+              setType(val as 'income' | 'expense');
+              setCategoryId(null);
+            }}
+            options={[
+              { value: 'expense', label: '지출' },
+              { value: 'income', label: '수입' },
+            ]}
+          />
         </div>
 
         {/* 날짜 선택 */}
@@ -328,54 +312,20 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
 
         {/* 결제 방식 섹션 (지출일 때만 표시) */}
         {type === 'expense' && (
-          <div className={cn(
-            "rounded-2xl p-5 space-y-4 transition-all duration-300 bg-card shadow-md",
-            paymentType === 'installment'
-              ? "ring-2 ring-primary shadow-lg shadow-primary/20"
-              : "ring-1 ring-border/80"
-          )}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300",
-                paymentType === 'installment'
-                  ? "bg-primary text-white shadow-lg shadow-primary/30"
-                  : "bg-secondary text-primary"
-              )}>
-                <CreditCard className="h-5 w-5" strokeWidth={2.5} />
-              </div>
-              <div>
-                <Label className="text-base font-bold">결제 방식</Label>
-                <p className="text-xs text-muted-foreground font-medium">일시불 또는 할부를 선택하세요</p>
-              </div>
-            </div>
-
-            {/* 일시불/할부 선택 */}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentType('lumpsum')}
-                className={cn(
-                  "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
-                  paymentType === 'lumpsum'
-                    ? "bg-primary/10 text-primary ring-1 ring-primary/20"
-                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                )}
-              >
-                일시불
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentType('installment')}
-                className={cn(
-                  "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
-                  paymentType === 'installment'
-                    ? "bg-primary/10 text-primary ring-1 ring-primary/20"
-                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                )}
-              >
-                할부 결제
-              </button>
-            </div>
+          <OptionCard
+            icon={CreditCard}
+            title="결제 방식"
+            description="일시불 또는 할부를 선택하세요"
+            active={paymentType === 'installment'}
+          >
+            <ToggleButton.Group
+              value={paymentType}
+              onChange={(val) => setPaymentType(val as 'lumpsum' | 'installment')}
+              className="mb-4"
+            >
+              <ToggleButton value="lumpsum" className="flex-1 py-3 text-sm">일시불</ToggleButton>
+              <ToggleButton value="installment" className="flex-1 py-3 text-sm">할부 결제</ToggleButton>
+            </ToggleButton.Group>
 
             {/* 할부 옵션 (할부 선택 시) */}
             {paymentType === 'installment' && (
@@ -459,71 +409,32 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
                 )}
               </div>
             )}
-          </div>
+          </OptionCard>
         )}
 
         {/* 고정 지출 설정 (할부가 아닐 때만 표시) */}
         {paymentType !== 'installment' && (
-          <div className={cn(
-            "rounded-2xl p-5 space-y-4 transition-all duration-300 bg-card shadow-md",
-            isRecurring 
-              ? "ring-2 ring-primary shadow-lg shadow-primary/20" 
-              : "ring-1 ring-border/80"
-          )}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300",
-                  isRecurring 
-                    ? "bg-primary text-white shadow-lg shadow-primary/30" 
-                    : "bg-secondary text-primary"
-                )}>
-                  <RepeatIcon className="h-5 w-5" strokeWidth={2.5} />
-                </div>
-                <div className="flex flex-col">
-                  <Label htmlFor="recurring" className="text-base font-bold cursor-pointer">반복 설정</Label>
-                  <p className="text-xs text-muted-foreground font-medium">매월 자동으로 기록할까요?</p>
-                </div>
-              </div>
-              <Switch
-                id="recurring"
-                checked={isRecurring}
-                onCheckedChange={isRecurringFixed ? undefined : setIsRecurring}
-                disabled={isRecurringFixed}
-                className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary scale-110"
-              />
-            </div>
-
+          <OptionCardWithSwitch
+            icon={RepeatIcon}
+            title="반복 설정"
+            description="매월 자동으로 기록할까요?"
+            active={isRecurring}
+            checked={isRecurring}
+            onCheckedChange={isRecurringFixed ? () => {} : setIsRecurring} // Type fix: onCheckedChange expects function
+            disabled={isRecurringFixed}
+          >
             {isRecurring && (
               <div className="pt-2 pl-1 space-y-4 animate-in slide-in-from-top-2 fade-in duration-300">
                 <div className="bg-background rounded-2xl p-4 shadow-sm">
                   <Label className="text-xs text-muted-foreground mb-3 block font-bold">종료일</Label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEndType('never')}
-                      className={cn(
-                        "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
-                        endType === 'never' 
-                          ? "bg-primary/10 text-primary ring-1 ring-primary/20" 
-                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      계속 반복
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEndType('date')}
-                      className={cn(
-                        "flex-1 rounded-xl py-3 text-sm font-bold transition-all",
-                        endType === 'date' 
-                          ? "bg-primary/10 text-primary ring-1 ring-primary/20" 
-                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      날짜 지정
-                    </button>
-                  </div>
+                  <ToggleButton.Group
+                    value={endType}
+                    onChange={(val) => setEndType(val as 'never' | 'date')}
+                    className="mb-3"
+                  >
+                    <ToggleButton value="never" className="flex-1 py-3 text-sm">계속 반복</ToggleButton>
+                    <ToggleButton value="date" className="flex-1 py-3 text-sm">날짜 지정</ToggleButton>
+                  </ToggleButton.Group>
 
                   {endType === 'date' && (
                     <div className="mt-3 animate-in fade-in pt-1">
@@ -556,7 +467,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
                 </div>
               </div>
             )}
-          </div>
+          </OptionCardWithSwitch>
         )}
       </div>
 
