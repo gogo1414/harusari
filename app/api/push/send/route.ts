@@ -64,8 +64,8 @@ export async function GET(request: Request) {
     }
 
     const supabase = createAdminClient();
-    const today = new Date();
-    const currentDay = getDate(today); // 1~31
+    const now = new Date();
+    const currentDay = getDate(now); // 1~31
 
     // 1. 모든 구독 정보 가져오기
     const { data: subscriptions, error: subError } = await supabase
@@ -120,32 +120,46 @@ export async function GET(request: Request) {
           }
         } 
         else if (type === 'evening') {
-          // 저녁: 오늘 지출 기록 여부 확인
-          // 오늘 00:00 ~ 23:59 사이의 transaction 카운트
-          // Supabase date 조작이 복잡하므로, 단순하게 오늘 날짜 문자열 매칭 시도
-          const todayStr = today.toISOString().split('T')[0];
+          // 저녁: 일일 브리핑 (지출액 요약)
+          // 1. 오늘 날짜 구하기 (KST 기준)
+          // Vercel은 UTC 기준이므로, UTC+9 시간을 구해서 날짜 문자열 생성
+          const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+          const todayStr = kstTime.toISOString().split('T')[0];
           
-          const { count } = await supabase
+          // 2. 오늘의 지출 내역 합산
+          const { data } = await supabase
             .from('transactions')
-            .select('*', { count: 'exact', head: true })
+            .select('amount, type')
             .eq('user_id', user_id)
-            .eq('date', todayStr);
+            .eq('date', todayStr)
+            .eq('type', 'expense');
 
-          // 기록이 0건이면 알림 발송
-          if (count === 0) {
-            payload = {
-              title: '🌙 오늘 하루는 어떠셨나요?',
-              body: '아직 지출 기록이 없어요. 잊으신 내역이 있다면 정리해보세요!',
-              url: '/',
-              icon: '/icons/icon-192.png'
-            };
+          const expenses = data as unknown as { amount: number }[] | null;
+          const totalAmount = expenses ? expenses.reduce((sum, item) => sum + item.amount, 0) : 0;
+          const hasTransactions = expenses && expenses.length > 0;
+
+          // 3. 메시지 생성 (무조건 발송)
+          if (hasTransactions) {
+              payload = {
+                  title: '🌙 오늘 하루 지출 요약',
+                  body: `오늘 총 ${totalAmount.toLocaleString()}원을 지출하셨어요. 꼼꼼한 기록 칭찬해요! 👍`,
+                  url: '/',
+                  icon: '/icons/icon-192.png'
+              };
+          } else {
+              payload = {
+                  title: '🌙 오늘 하루는 어떠셨나요?',
+                  body: '오늘 지출 내역이 없네요. 무지출 챌린지 성공?! 잊은 내역이 없는지 확인해보세요.',
+                  url: '/',
+                  icon: '/icons/icon-192.png'
+              };
           }
         }
         else if (type === 'monthly') {
           // 월간: 지난달 지출 분석 알림 (매월 1일 발송)
-          const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
           const startStr = lastMonthDate.toISOString().split('T')[0];
-          const endDate = new Date(today.getFullYear(), today.getMonth(), 0); // 지난달 마지막 날
+          const endDate = new Date(now.getFullYear(), now.getMonth(), 0); // 지난달 마지막 날
           const endStr = endDate.toISOString().split('T')[0];
           const monthLabel = `${lastMonthDate.getMonth() + 1}월`;
 
