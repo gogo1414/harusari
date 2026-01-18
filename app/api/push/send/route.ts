@@ -27,12 +27,17 @@ if (!vapidSubject.startsWith('mailto:') && !vapidSubject.startsWith('http')) {
 const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const privateKey = process.env.VAPID_PRIVATE_KEY;
 
-if (publicKey && privateKey) {
-  webPush.setVapidDetails(vapidSubject, publicKey, privateKey);
-}
+// VAPID keys should be configured inside the handler or lazily to avoid build-time errors
+// when environment variables might not be fully available or when static analysis runs.
 
 export async function GET(request: Request) {
   try {
+    if (!publicKey || !privateKey) {
+      console.error('VAPID public/private keys are missing in environment variables');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+    webPush.setVapidDetails(vapidSubject, publicKey, privateKey);
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'morning' | 'evening' | 'test'
     
