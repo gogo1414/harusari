@@ -23,7 +23,7 @@ const getReadyRegistration = async () => {
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise<ServiceWorkerRegistration>((_, reject) => 
-      setTimeout(() => reject(new Error('SW registration timeout')), 3000)
+      setTimeout(() => reject(new Error('SW registration timeout')), 10000)
     )
   ]);
 };
