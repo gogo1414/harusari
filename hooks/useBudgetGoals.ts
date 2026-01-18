@@ -2,9 +2,10 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { BudgetGoal } from '@/types/database';
+import type { BudgetGoal, Database } from '@/types/database';
 
 export type BudgetGoalWithCategory = BudgetGoal & { category?: { name: string; icon: string; type: string } | null };
+type BudgetGoalInsert = Database['public']['Tables']['budget_goals']['Insert'];
 
 export function useBudgetGoals() {
   const supabase = createClient();
@@ -30,24 +31,26 @@ export function useBudgetGoals() {
       return data as BudgetGoalWithCategory[];
     },
   });
-
   // 2. 추가/수정 (Upsert)
   const upsertMutation = useMutation({
     mutationFn: async (goal: { category_id: string | null; amount: number }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const budgetGoal: BudgetGoalInsert = {
+        user_id: user.id,
+        category_id: goal.category_id,
+        amount: goal.amount,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error } = await supabase
         .from('budget_goals')
         .upsert(
-            {
-                user_id: user.id,
-                category_id: goal.category_id,
-                amount: goal.amount,
-                updated_at: new Date().toISOString(),
-            } as any,
+            budgetGoal as any,
             { onConflict: 'user_id, category_id' }
         );
+// ...
 
       if (error) throw error;
     },
