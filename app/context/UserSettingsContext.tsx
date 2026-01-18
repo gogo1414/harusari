@@ -54,7 +54,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
       return {
         salary_cycle_date: safeData.cycle_start_day ?? 1,
-        week_start_day: safeData.week_start === 'monday' ? 1 : 0, 
+        week_start_day: safeData.week_start === 'monday' ? 1 : 0,
       } as UserSettings;
     },
     enabled: !!userId,
@@ -110,18 +110,27 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   // 설정 업데이트 함수
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
     if (!userId) return;
-    
-    // UI 업데이트용 DB 페이로드 변환
+
+    // DB 페이로드 구성
     const dbPayload: UserSettingsUpdate = {};
     if (newSettings.salary_cycle_date !== undefined) dbPayload.cycle_start_day = newSettings.salary_cycle_date;
     if (newSettings.week_start_day !== undefined) dbPayload.week_start = newSettings.week_start_day === 1 ? 'monday' : 'sunday';
+    
+    dbPayload.updated_at = new Date().toISOString();
 
     const { error } = await supabase
       .from('user_settings')
-      // @ts-expect-error - upsert 타입 불일치
-      .upsert({ user_id: userId, ...dbPayload });
+      // @ts-expect-error - upsert type inference mismatch
+      .upsert({ 
+          user_id: userId, 
+          ...dbPayload 
+      }, { onConflict: 'user_id' });
 
-    if (error) throw error;
+    if (error) {
+        console.error('Settings update error:', error);
+        throw error;
+    }
+    
     queryClient.invalidateQueries({ queryKey: ['user_settings'] });
   };
 

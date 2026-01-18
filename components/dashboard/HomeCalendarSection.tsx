@@ -7,11 +7,14 @@ import { CalendarSkeleton, SummaryCardSkeleton } from '@/components/common/Skele
 import DailyTransactionCard from '@/components/common/DailyTransactionCard';
 import SummaryCard from '@/components/common/SummaryCard';
 import { AnimatedCurrency } from '@/components/animation/AnimatedNumber';
+import { getCycleRange } from '@/lib/date';
+import DailySurvivalCard from '@/components/dashboard/DailySurvivalCard';
 import type { Transaction, Category } from '@/types/database'; // Import types
 
 interface HomeCalendarSectionProps {
   isLoading: boolean;
   transactions: Transaction[];
+  cycleTransactions: Transaction[]; // New prop
   currentDate: Date;
   setCurrentMonth: (date: Date) => void;
   selectedDate: Date | null;
@@ -28,6 +31,7 @@ interface HomeCalendarSectionProps {
 export default function HomeCalendarSection({
   isLoading,
   transactions,
+  cycleTransactions, // Destructure
   currentDate,
   setCurrentMonth,
   selectedDate,
@@ -45,8 +49,19 @@ export default function HomeCalendarSection({
         console.log("Type filter clicked"); 
     };
 
+    const cycleRange = getCycleRange(currentDate, cycleStartDay);
+
   return (
     <div className="flex-1 px-4 pt-4 pb-24">
+      {/* Daily Survival Widget */}
+      <div className="mb-4">
+        <DailySurvivalCard 
+          currentDate={currentDate}
+          transactions={cycleTransactions}
+          cycleEndDate={cycleRange.end}
+        />
+      </div>
+
       {/* Main Card */}
       <div className="rounded-[32px] bg-card p-5 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 relative">
         {isLoading ? (

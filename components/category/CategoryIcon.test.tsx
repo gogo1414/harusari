@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { CategoryIcon } from '@/app/components/IconPicker';
+import { CategoryIcon } from '@/components/category/IconPicker';
 
 describe('CategoryIcon', () => {
   it('renders a matched Lucide icon', () => {

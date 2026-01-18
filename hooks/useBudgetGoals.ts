@@ -45,7 +45,7 @@ export function useBudgetGoals() {
                 category_id: goal.category_id,
                 amount: goal.amount,
                 updated_at: new Date().toISOString(),
-            }, // Type inference should work now, or we can look further if it fails
+            } as any,
             { onConflict: 'user_id, category_id' }
         );
 

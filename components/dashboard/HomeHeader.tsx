@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogOut, List, Repeat, BarChart3, Settings } from 'lucide-react';
+import { LogOut, List, Repeat, BarChart3, Settings, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnimatedMenuIcon } from '@/components/animation/AnimatedMenuIcon';
 import { Button } from '@/components/ui/button';
@@ -73,6 +73,15 @@ export default function HomeHeader({ isMenuOpen, setIsMenuOpen, onLogout }: Home
                         </motion.div>
 
                         <motion.div custom={3} variants={menuItemVariants} initial="hidden" animate="visible">
+                          <Link href="/budget-settings" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/budget-settings' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/budget-settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
+                               <Wallet className={`h-6 w-6 ${pathname === '/budget-settings' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
+                            </div>
+                            <span className={`font-bold text-lg ${pathname === '/budget-settings' ? 'text-primary' : 'text-foreground/90'}`}>월 목표 예산 설정</span>
+                          </Link>
+                        </motion.div>
+
+                        <motion.div custom={4} variants={menuItemVariants} initial="hidden" animate="visible">
                           <Link href="/settings" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/settings' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
                             <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
                                <Settings className={`h-6 w-6 ${pathname === '/settings' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />

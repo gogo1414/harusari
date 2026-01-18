@@ -8,17 +8,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUserSettings } from '@/hooks/useUserSettings';
+import { useUserSettings } from '@/app/context/UserSettingsContext';
 
 export default function BasicSettingSection() {
-  const { userSettings, updateSettings } = useUserSettings();
+  const { settings, updateSettings } = useUserSettings();
 
   const handleCycleChange = (value: string) => {
-    updateSettings({ cycle_start_day: parseInt(value) });
+    updateSettings({ salary_cycle_date: parseInt(value) });
   };
 
   const handleWeekStartChange = (value: string) => {
-    updateSettings({ week_start: value === '1' ? 'monday' : 'sunday' });
+    updateSettings({ week_start_day: value === '1' ? 1 : 0 });
   };
 
   return (
@@ -31,7 +31,7 @@ export default function BasicSettingSection() {
             <span className="text-xs text-muted-foreground">달력/통계 기준일</span>
           </div>
           <Select 
-            value={userSettings?.cycle_start_day?.toString() || '1'} 
+            value={settings?.salary_cycle_date?.toString() || '1'} 
             onValueChange={handleCycleChange}
           >
             <SelectTrigger className="w-[110px] h-9 rounded-full bg-muted/50 border-none font-semibold">
@@ -53,7 +53,7 @@ export default function BasicSettingSection() {
             <span className="text-xs text-muted-foreground">달력 표시 방식</span>
           </div>
           <Select 
-            value={userSettings?.week_start === 'monday' ? '1' : '0'} 
+            value={settings?.week_start_day === 1 ? '1' : '0'} 
             onValueChange={handleWeekStartChange}
           >
             <SelectTrigger className="w-[110px] h-9 rounded-full bg-muted/50 border-none font-semibold">

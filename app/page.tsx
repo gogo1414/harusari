@@ -171,6 +171,7 @@ export default function HomePage() {
       <HomeCalendarSection
         isLoading={isLoading}
         transactions={transactions}
+        cycleTransactions={cycleTransactions}
         currentDate={currentMonth}
         setCurrentMonth={setCurrentMonth}
         selectedDate={selectedDate}

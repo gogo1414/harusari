@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import NotificationSettingSection from '@/components/settings/NotificationSettingSection';
 import ThemeSettingSection from '@/components/settings/ThemeSettingSection';
 import BasicSettingSection from '@/components/settings/BasicSettingSection';
+
 import AccountSettingSection from '@/components/settings/AccountSettingSection';
 import { useUserSettings } from '@/hooks/useUserSettings';
 

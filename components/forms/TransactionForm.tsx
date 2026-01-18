@@ -28,17 +28,20 @@ import type { Category } from '@/types/database';
 import { CategoryIcon } from '@/components/category/IconPicker';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import SegmentedControl from '@/components/common/SegmentedControl';
+
 import OptionCard, { OptionCardWithSwitch } from '@/components/common/OptionCard';
 import ToggleButton from '@/components/common/ToggleButton';
+
 import CategorySelectDialog from '@/components/forms/transaction/CategorySelectDialog';
 import AddCategoryDialog from '@/components/forms/transaction/AddCategoryDialog';
+
 
 export interface TransactionFormData {
   type: 'income' | 'expense';
   date: Date;
   amount: number;
   category_id: string;
+  // asset_id?: string; // Removed
   memo: string;
   is_recurring: boolean;
   end_type: 'never' | 'date';
@@ -65,6 +68,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   const [date, setDate] = useState<Date>(initialData?.date || initialDate || new Date());
   const [amount, setAmount] = useState(initialData?.amount ? initialData.amount.toLocaleString() : '');
   const [categoryId, setCategoryId] = useState<string | null>(initialData?.category_id || null);
+  // const [assetId, setAssetId] = useState<string | null>(initialData?.asset_id || null); // Removed
   const [memo, setMemo] = useState(initialData?.memo || '');
   const [isRecurring, setIsRecurring] = useState(initialData?.is_recurring || false);
   const [isLoading, setIsLoading] = useState(false);
@@ -160,6 +164,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
         date,
         amount: getRawAmount(),
         category_id: categoryId,
+
         memo,
         is_recurring: isRecurring,
         end_type: endType,
@@ -189,20 +194,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
       </div>
 
       <div className="flex-1 px-5 py-2 space-y-8">
-        {/* 수입/지출 선택 */}
-        <div className="flex justify-center pb-2">
-          <SegmentedControl
-            value={type}
-            onChange={(val) => {
-              setType(val as 'income' | 'expense');
-              setCategoryId(null);
-            }}
-            options={[
-              { value: 'expense', label: '지출' },
-              { value: 'income', label: '수입' },
-            ]}
-          />
-        </div>
+
 
         {/* 날짜 선택 */}
         <div className="flex justify-center">
@@ -231,8 +223,43 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           </Popover>
         </div>
 
-        {/* 금액 입력 */}
+        {/* 금액 입력 (수입/지출 토글) */}
         <div className="flex flex-col items-center">
+           <div className="flex bg-muted/40 p-1.5 rounded-full mb-6 relative">
+             <button
+                onClick={() => {
+                  if (type !== 'expense') {
+                    setType('expense');
+                    setCategoryId(null);
+                  }
+                }}
+                className={cn(
+                  "px-8 py-2.5 rounded-full text-base font-bold transition-all duration-200",
+                  type === 'expense' 
+                    ? "bg-background text-expense shadow-sm scale-100" 
+                    : "text-muted-foreground hover:text-foreground scale-95 opacity-70"
+                )}
+             >
+               지출
+             </button>
+             <button
+                onClick={() => {
+                  if (type !== 'income') {
+                    setType('income');
+                    setCategoryId(null);
+                  }
+                }}
+                className={cn(
+                  "px-8 py-2.5 rounded-full text-base font-bold transition-all duration-200",
+                  type === 'income' 
+                    ? "bg-background text-income shadow-sm scale-100" 
+                    : "text-muted-foreground hover:text-foreground scale-95 opacity-70"
+                )}
+             >
+               수입
+             </button>
+           </div>
+
           <div className="relative flex items-center justify-center w-full">
             <input
               type="text"
@@ -240,7 +267,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
               onChange={handleAmountChange}
               placeholder="0"
               className={cn(
-                  "w-full bg-transparent text-center text-5xl font-extrabold outline-none placeholder:text-muted-foreground/20 caret-primary",
+                  "w-full bg-transparent text-center text-5xl font-extrabold outline-none placeholder:text-muted-foreground/20 caret-primary transition-colors duration-300",
                   type === 'income' ? "text-income" : "text-expense"
               )}
               inputMode="numeric"
@@ -249,6 +276,8 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           </div>
           <span className="mt-2 text-lg font-bold text-muted-foreground">원</span>
         </div>
+
+
 
         {/* 카테고리 선택 */}
         <div>
