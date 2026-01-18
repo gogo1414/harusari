@@ -16,6 +16,12 @@
 /.next/
 /out/
 
+# PWA
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/swe-worker-*.js
+
 # Playwright
 test-results/
 playwright-report/
