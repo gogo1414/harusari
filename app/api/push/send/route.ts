@@ -39,7 +39,23 @@ export async function GET(request: Request) {
     webPush.setVapidDetails(vapidSubject, publicKey, privateKey);
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'morning' | 'evening' | 'test'
+    let type = searchParams.get('type'); // 'morning' | 'evening' | 'test'
+    
+    // Cron으로 실행되어 파라미터가 없는 경우 시간으로 타입 추론 (UTC 기준)
+    if (!type) {
+        const now = new Date();
+        const utcHour = now.getUTCHours();
+        const utcDate = now.getUTCDate();
+
+        if (utcHour === 0) type = 'morning';      // 09:00 KST
+        else if (utcHour === 12) type = 'evening'; // 21:00 KST
+        else if (utcHour === 1 && utcDate === 1) type = 'monthly'; // 1일 10:00 KST
+    }
+
+    // 유효하지 않은 타입이거나 Monthly가 아닌데 01시 호출인 경우 등은 종료
+    if (!type) {
+        return NextResponse.json({ message: 'No valid push type determined from time' });
+    }
     
     // 보안 체크 (Vercel Cron 사용 시 CRON_SECRET 필요)
     const authHeader = request.headers.get('authorization');
