@@ -10,6 +10,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import type { Transaction, Category } from '@/types/database';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
+import { useBudgetGoals } from '@/hooks/useBudgetGoals';
+import BudgetAnalysisCard, { type BudgetAnalysisItem } from '@/components/stats/BudgetAnalysisCard';
 import StatSection from '@/components/charts/StatSection';
 import TrendChart from '@/components/charts/TrendChart';
 import { getCycleRange, filterByDateRange } from '@/lib/date';
@@ -39,6 +41,7 @@ export default function StatsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const { settings } = useUserSettings();
+  const { budgetGoals } = useBudgetGoals();
   const cycleStartDay = settings.salary_cycle_date || 1;
 
   const currentCycle = getCycleRange(currentDate, cycleStartDay);
@@ -133,8 +136,49 @@ export default function StatsPage() {
     return { iStats, eStats, tIncome, tExpense };
   };
 
+
   const currentMonthTrans = filterByDateRange(transactions, currentCycle.start, currentCycle.end);
   const lastMonthTrans = filterByDateRange(transactions, lastCycle.start, lastCycle.end);
+
+
+
+// ... (previous imports)
+
+// ... inside component ...
+
+  // 예산 분석 데이터 계산
+  const budgetAnalysis: BudgetAnalysisItem[] = budgetGoals
+    .filter(g => g.category_id !== null)
+    .map(goal => {
+        // ... (data calculation logic remains same)
+        const spent = currentMonthTrans
+            .filter(t => 
+                t.type === 'expense' && 
+                !t.source_fixed_id && 
+                t.category_id === goal.category_id
+            )
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        const percentage = (spent / goal.amount) * 100;
+        
+        let status: 'safe' | 'warning' | 'danger' = 'safe';
+        if (spent > goal.amount) status = 'danger';
+        else if (percentage >= 80) status = 'danger';
+        else if (percentage >= 50) status = 'warning';
+
+        return {
+            category_id: goal.category_id,
+            categoryName: goal.category?.name || '미분류',
+            categoryIcon: goal.category?.icon || 'circle',
+            goal: goal.amount,
+            spent,
+            percentage,
+            status
+        };
+    })
+    .sort((a, b) => b.percentage - a.percentage);
+
+
 
   const currentStats = calculateStats(currentMonthTrans);
   const lastStats = calculateStats(lastMonthTrans);
@@ -249,6 +293,9 @@ export default function StatsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 fill-mode-backwards">
+             {/* 예산 분석 카드 (New) */}
+             <BudgetAnalysisCard data={budgetAnalysis} />
+
             {/* 지출 카드 */}
             <div className="bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">
               <div className="flex items-center gap-3 mb-6">
