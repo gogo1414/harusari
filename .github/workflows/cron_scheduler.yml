@@ -1,0 +1,64 @@
+name: Cron Scheduler
+
+on:
+  schedule:
+    # 1. 고정지출 생성: 매일 00:00 KST (15:00 UTC)
+    - cron: '0 15 * * *'
+    # 2. 아침 알림: 매일 09:00 KST (00:00 UTC)
+    - cron: '0 0 * * *'
+    # 3. 월간 분석: 매월 1일 10:00 KST (01:00 UTC)
+    - cron: '0 1 1 * *'
+    # 4. 저녁 알림: 매일 21:00 KST (12:00 UTC)
+    - cron: '0 12 * * *'
+  
+  # 수동 실행 가능
+  workflow_dispatch:
+
+jobs:
+  trigger-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call API Endpoints
+        run: |
+          # 현재 시간 (UTC)
+          CURRENT_HOUR=$(date -u +%H)
+          CURRENT_DAY=$(date -u +%d)
+          
+          echo "Current UTC Hour: $CURRENT_HOUR"
+          echo "Current UTC Day: $CURRENT_DAY"
+          
+          # 공통 헤더
+          AUTH_HEADER="Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          BASE_URL="https://harusari.vercel.app"
+          
+          # 1. 고정지출 생성 (15:00 UTC)
+          if [ "$CURRENT_HOUR" -eq 15 ]; then
+            echo "Triggering Recurring Transactions..."
+            curl -X GET "$BASE_URL/api/cron/recurring" \
+              -H "$AUTH_HEADER" \
+              -H "Content-Type: application/json"
+          fi
+          
+          # 2. 아침 알림 (00:00 UTC)
+          if [ "$CURRENT_HOUR" -eq 00 ]; then
+            echo "Triggering Morning Push..."
+            curl -X GET "$BASE_URL/api/push/send?type=morning" \
+              -H "$AUTH_HEADER" \
+              -H "Content-Type: application/json"
+          fi
+          
+          # 3. 월간 분석 (01:00 UTC, 1일)
+          if [ "$CURRENT_HOUR" -eq 01 ] && [ "$CURRENT_DAY" -eq 01 ]; then
+            echo "Triggering Monthly Analysis Push..."
+            curl -X GET "$BASE_URL/api/push/send?type=monthly" \
+              -H "$AUTH_HEADER" \
+              -H "Content-Type: application/json"
+          fi
+          
+          # 4. 저녁 알림 (12:00 UTC)
+          if [ "$CURRENT_HOUR" -eq 12 ]; then
+            echo "Triggering Evening Push..."
+            curl -X GET "$BASE_URL/api/push/send?type=evening" \
+              -H "$AUTH_HEADER" \
+              -H "Content-Type: application/json"
+          fi
