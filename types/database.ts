@@ -1,6 +1,3 @@
-// Supabase 데이터베이스 타입 정의
-// Supabase CLI로 자동 생성된 타입으로 교체 가능: npx supabase gen types typescript
-
 export type Json =
   | string
   | number
@@ -174,12 +171,38 @@ export interface Database {
           updated_at?: string;
         };
       };
+      budget_goals: {
+        Row: {
+          id: string;
+          user_id: string;
+          category_id: string | null;
+          amount: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          category_id?: string | null;
+          amount: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          category_id?: string | null;
+          amount?: number;
+          updated_at?: string;
+        };
+      };
+
     };
   };
 }
 
-// 편의를 위한 타입 별칭
 export type UserSettings = Database['public']['Tables']['user_settings']['Row'];
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Transaction = Database['public']['Tables']['transactions']['Row'];
 export type FixedTransaction = Database['public']['Tables']['fixed_transactions']['Row'];
+export type BudgetGoal = Database['public']['Tables']['budget_goals']['Row'];
+
