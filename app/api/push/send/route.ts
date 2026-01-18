@@ -1,0 +1,158 @@
+import { createAdminClient } from '@/lib/supabase/admin';
+import { NextResponse } from 'next/server';
+import webPush, { WebPushError } from 'web-push';
+import { getDate } from 'date-fns';
+
+// Push Notification Payload Interface
+interface PushPayload {
+  title: string;
+  body: string;
+  url: string;
+  icon: string;
+}
+
+// Push Send Result Interface
+interface PushSendResult {
+  user_id: string;
+  status: 'sent' | 'removed' | 'error';
+  type?: string | null;
+  error?: string;
+}
+
+// VAPID 설정
+let vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@harusari.app';
+if (!vapidSubject.startsWith('mailto:') && !vapidSubject.startsWith('http')) {
+  vapidSubject = `mailto:${vapidSubject}`;
+}
+const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+if (publicKey && privateKey) {
+  webPush.setVapidDetails(vapidSubject, publicKey, privateKey);
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type'); // 'morning' | 'evening' | 'test'
+    
+    // 보안 체크 (Vercel Cron 사용 시 CRON_SECRET 필요)
+    const authHeader = request.headers.get('authorization');
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const supabase = createAdminClient();
+    const today = new Date();
+    const currentDay = getDate(today); // 1~31
+
+    // 1. 모든 구독 정보 가져오기
+    const { data: subscriptions, error: subError } = await supabase
+      .from('user_push_subscriptions')
+      .select('user_id, subscription');
+
+    if (subError) throw subError;
+    if (!subscriptions || subscriptions.length === 0) {
+      return NextResponse.json({ message: 'No subscriptions found' });
+    }
+
+    const results: PushSendResult[] = [];
+
+    // 2. 각 사용자별로 조건 체크 및 발송
+    for (const sub of subscriptions) {
+      const { user_id, subscription } = sub;
+      let payload: PushPayload | null = null;
+
+      try {
+        if (type === 'test') {
+          payload = {
+            title: '🔔 알림 테스트',
+            body: '하루살이 알림이 잘 도착했나요?',
+            url: '/',
+            icon: '/icons/icon-192.png'
+          };
+        } 
+        else if (type === 'morning') {
+          // 아침: 오늘 예정된 고정지출/할부 확인
+          const { data } = await supabase
+            .from('fixed_transactions')
+            .select('amount, memo, is_installment')
+            .eq('user_id', user_id)
+            .eq('day', currentDay)
+            .eq('is_active', true);
+            
+          const fixedList = data as unknown as { amount: number; memo: string | null; is_installment: boolean }[] | null;
+
+          if (fixedList && fixedList.length > 0) {
+            const totalAmount = fixedList.reduce((sum, item) => sum + item.amount, 0);
+            const count = fixedList.length;
+            const msg = count === 1 
+              ? `${fixedList[0].memo || '고정지출'} 결제 예정일입니다.`
+              : `${fixedList[0].memo || '고정지출'} 외 ${count - 1}건의 결제가 예정되어 있습니다.`;
+
+            payload = {
+              title: `💸 오늘 나갈 돈: ${totalAmount.toLocaleString()}원`,
+              body: msg,
+              url: '/recurring',
+              icon: '/icons/icon-192.png'
+            };
+          }
+        } 
+        else if (type === 'evening') {
+          // 저녁: 오늘 지출 기록 여부 확인
+          // 오늘 00:00 ~ 23:59 사이의 transaction 카운트
+          // Supabase date 조작이 복잡하므로, 단순하게 오늘 날짜 문자열 매칭 시도
+          const todayStr = today.toISOString().split('T')[0];
+          
+          const { count } = await supabase
+            .from('transactions')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user_id)
+            .eq('date', todayStr);
+
+          // 기록이 0건이면 알림 발송
+          if (count === 0) {
+            payload = {
+              title: '🌙 오늘 하루는 어떠셨나요?',
+              body: '아직 지출 기록이 없어요. 잊으신 내역이 있다면 정리해보세요!',
+              url: '/',
+              icon: '/icons/icon-192.png'
+            };
+          }
+        }
+
+        // 3. 알림 발송
+        if (payload) {
+          await webPush.sendNotification(
+            subscription as webPush.PushSubscription,
+            JSON.stringify(payload)
+          );
+          results.push({ user_id, status: 'sent', type });
+        }
+      } catch (err: unknown) {
+        console.error(`Error sending to user ${user_id}:`, err);
+        
+        // 구독 만료(410) 시 DB에서 삭제
+        if (err instanceof WebPushError && err.statusCode === 410) {
+           await supabase
+             .from('user_push_subscriptions')
+             .delete()
+             .eq('user_id', user_id)
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             .filter('subscription->>endpoint', 'eq', (subscription as any).endpoint);
+           results.push({ user_id, status: 'removed' });
+        } else {
+            const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+            results.push({ user_id, status: 'error', error: errorMessage });
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, results });
+  } catch (error: unknown) {
+    console.error('Push Cron Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+

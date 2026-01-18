@@ -118,3 +118,24 @@ COMMENT ON COLUMN fixed_transactions.installment_months IS '총 할부 개월 �
 COMMENT ON COLUMN fixed_transactions.installment_rate IS '할부 연 이자율 (%)';
 COMMENT ON COLUMN fixed_transactions.installment_free_months IS '무이자 적용 개월 수';
 COMMENT ON COLUMN fixed_transactions.installment_current_month IS '현재 납부 회차';
+
+-- 푸시 알림 구독 테이블
+-- 이 스크립트를 Supabase SQL Editor에서 실행하세요.
+CREATE TABLE IF NOT EXISTS user_push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  subscription JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, subscription)
+);
+
+-- user_push_subscriptions RLS
+ALTER TABLE user_push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "user_push_subscriptions_select" ON user_push_subscriptions 
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_push_subscriptions_insert" ON user_push_subscriptions 
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_push_subscriptions_delete" ON user_push_subscriptions 
+  FOR DELETE USING (auth.uid() = user_id);

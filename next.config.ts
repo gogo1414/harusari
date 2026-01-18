@@ -9,12 +9,13 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
+    importScripts: ["/custom-sw.js"],
   },
 });
 
 const nextConfig: NextConfig = {
   /* config options here */
-  turbopack: {},
+  /* config options here */
 };
 
 export default withPWA(nextConfig);

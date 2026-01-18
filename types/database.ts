@@ -153,6 +153,27 @@ export interface Database {
           installment_current_month?: number | null;
         };
       };
+      user_push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          subscription: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subscription: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          subscription?: Json;
+          updated_at?: string;
+        };
+      };
     };
   };
 }
