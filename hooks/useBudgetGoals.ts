@@ -47,6 +47,7 @@ export function useBudgetGoals() {
       const { error } = await supabase
         .from('budget_goals')
         .upsert(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             budgetGoal as any,
             { onConflict: 'user_id, category_id' }
         );

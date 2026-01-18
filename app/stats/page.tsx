@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, addMonths, subMonths } from 'date-fns';
-import { ko } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -14,9 +13,9 @@ import { useBudgetGoals } from '@/hooks/useBudgetGoals';
 import BudgetAnalysisCard, { type BudgetAnalysisItem } from '@/components/stats/BudgetAnalysisCard';
 import StatSection from '@/components/charts/StatSection';
 import TrendChart from '@/components/charts/TrendChart';
+import StatsDateNavigator from '@/components/stats/StatsDateNavigator';
+import StatsTotalInsight from '@/components/stats/StatsTotalInsight';
 import { getCycleRange, filterByDateRange } from '@/lib/date';
-
-// Remove unused formatBarLabel since it's now part of TrendChart
 
 const INCOME_COLORS = [
   '#3182F6', // Blue (Toss)
@@ -47,17 +46,12 @@ export default function StatsPage() {
   const currentCycle = getCycleRange(currentDate, cycleStartDay);
   const lastCycle = getCycleRange(subMonths(currentCycle.start, 1), cycleStartDay);
 
-  // 통합 트랜잭션 데이터 조회 (지난 사이클 ~ 이번 사이클 커버)
-  // 여유 있게 전전달 부터 다음달까지 조회
+  // 통합 트랜잭션 데이터 조회
   const fetchStart = format(subMonths(lastCycle.start, 1), 'yyyy-MM-dd');
   const fetchEnd = format(addMonths(currentCycle.end, 1), 'yyyy-MM-dd');
 
   const handleMonthChange = (delta: number) => {
-    // 사이클 단위로 이동. 
-    // 현재 사이클의 시작일에서 delta 개월만큼 이동한 날짜를 기준으로 다시 사이클 계산
     const newBaseDate = addMonths(currentCycle.start, delta);
-    // 날짜가 cycleDay보다 작아지지 않게 조정 (예: 1일 -> 25일로 이동 시 꼬임 방지)
-    // 애초에 사이클 시작일(항상 cycleDay)을 기준으로 이동하면 안전함.
     setCurrentDate(newBaseDate);
   };
 
@@ -90,13 +84,12 @@ export default function StatsPage() {
     },
   });
 
-  // 월별 추이 데이터 조회 (최근 6개월 + 여유분)
-  // 정확한 사이클 계산을 위해 넉넉히 8개월 전부터 조회
+  // 월별 추이 데이터 조회
   const trendStart = format(subMonths(currentDate, 8), 'yyyy-MM-dd');
   const trendEnd = format(addMonths(currentDate, 2), 'yyyy-MM-dd');
   
   const { data: trendData = [], isLoading: isTrendLoading } = useQuery({
-    queryKey: ['transactions', 'trend', currentDate.getFullYear(), cycleStartDay], // cycleStartDay 변경 시 재조회
+    queryKey: ['transactions', 'trend', currentDate.getFullYear(), cycleStartDay],
     queryFn: async () => {
       const { data, error: userError } = await supabase.auth.getUser();
       if (userError || !data.user) throw new Error('Not authenticated');
@@ -115,42 +108,34 @@ export default function StatsPage() {
 
   const isLoading = isTransLoading || isTrendLoading;
 
-  // 통계 계산 로직 분리
+  // 통계 계산 로직 분리 및 네이밍 개선 
   const calculateStats = (transData: Transaction[]) => {
-    const iStats: Record<string, number> = {};
-    const eStats: Record<string, number> = {};
-    let tIncome = 0;
-    let tExpense = 0;
+    const incomeByCat: Record<string, number> = {};
+    const expenseByCat: Record<string, number> = {};
+    let totalIncome = 0;
+    let totalExpense = 0;
 
     transData.forEach((t) => {
       const catId = t.category_id || 'unknown';
       if (t.type === 'income') {
-        iStats[catId] = (iStats[catId] || 0) + t.amount;
-        tIncome += t.amount;
+        incomeByCat[catId] = (incomeByCat[catId] || 0) + t.amount;
+        totalIncome += t.amount;
       } else {
-        eStats[catId] = (eStats[catId] || 0) + t.amount;
-        tExpense += t.amount;
+        expenseByCat[catId] = (expenseByCat[catId] || 0) + t.amount;
+        totalExpense += t.amount;
       }
     });
 
-    return { iStats, eStats, tIncome, tExpense };
+    return { incomeByCat, expenseByCat, totalIncome, totalExpense };
   };
-
 
   const currentMonthTrans = filterByDateRange(transactions, currentCycle.start, currentCycle.end);
   const lastMonthTrans = filterByDateRange(transactions, lastCycle.start, lastCycle.end);
-
-
-
-// ... (previous imports)
-
-// ... inside component ...
 
   // 예산 분석 데이터 계산
   const budgetAnalysis: BudgetAnalysisItem[] = budgetGoals
     .filter(g => g.category_id !== null)
     .map(goal => {
-        // ... (data calculation logic remains same)
         const spent = currentMonthTrans
             .filter(t => 
                 t.type === 'expense' && 
@@ -178,8 +163,6 @@ export default function StatsPage() {
     })
     .sort((a, b) => b.percentage - a.percentage);
 
-
-
   const currentStats = calculateStats(currentMonthTrans);
   const lastStats = calculateStats(lastMonthTrans);
 
@@ -200,25 +183,16 @@ export default function StatsPage() {
         color: colors[index % colors.length],
       }));
 
-  const incomeStats = processStats(currentStats.iStats, INCOME_COLORS);
-  const expenseStats = processStats(currentStats.eStats, EXPENSE_COLORS);
+  const incomeStats = processStats(currentStats.incomeByCat, INCOME_COLORS);
+  const expenseStats = processStats(currentStats.expenseByCat, EXPENSE_COLORS);
 
-  const expenseDiff = currentStats.tExpense - lastStats.tExpense;
-  const incomeDiff = currentStats.tIncome - lastStats.tIncome;
+  const expenseDiff = currentStats.totalExpense - lastStats.totalExpense;
+  const incomeDiff = currentStats.totalIncome - lastStats.totalIncome;
 
-  // 수입/지출 추이 데이터 처리 (최근 6개월)
+  // 수입/지출 추이 데이터 처리
   const monthlyTrendStats = Array.from({ length: 6 }, (_, i) => {
-    // 5개월 전 사이클 ~ 이번 사이클 (0)
-    // currentCycle.start 기준으로 i개월 전 사이클 계산
-    // *주의: 단순히 subMonths만 하면 날짜가 밀릴 수 있음.
-    // getCycleRange를 사용하여 정확한 사이클 다시 계산
-    
-    // 기준 날짜: 현재 사이클 시작일에서 (5-i)개월 뺌
     const targetBaseDate = subMonths(currentCycle.start, 5 - i);
     const { start: cycleStart, end: cycleEnd } = getCycleRange(targetBaseDate, cycleStartDay);
-    
-    // 라벨: 사이클의 종료일이 속한 '월'을 기준으로 표시 (예: 12.25~1.24 -> 1월)
-    // 혹은 시작일 기준? 보통 종료일 기준이 '귀속월'로 인식됨.
     const labelDate = cycleEnd; 
     
     const monthTrans = filterByDateRange(trendData, cycleStart, cycleEnd);
@@ -247,45 +221,16 @@ export default function StatsPage() {
 
       <div className="flex-1 p-5 space-y-8">
         {/* 날짜 네비게이션 */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-4 bg-secondary/30 rounded-full px-5 py-2 hover:bg-secondary/40 transition-colors">
-                <Button variant="ghost" size="icon" onClick={() => handleMonthChange(-1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <h2 className="text-lg font-bold tabular-nums tracking-wide">
-                  {format(currentCycle.end, 'yyyy년 M월', { locale: ko })}
-                </h2>
-                <Button variant="ghost" size="icon" onClick={() => handleMonthChange(1)} className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground font-medium">
-                ({format(currentCycle.start, 'M.d')} ~ {format(currentCycle.end, 'M.d')})
-              </p>
-            </div>
+        <StatsDateNavigator 
+            currentCycle={currentCycle} 
+            onMonthChange={handleMonthChange} 
+        />
 
         {/* 메인 인사이트 섹션 (총 지출) */}
-        <div className="flex flex-col items-center text-center gap-2 py-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-           <span className="text-sm font-semibold text-muted-foreground tracking-tight">이번 달 총 지출</span>
-           <h1 className="text-5xl font-extrabold tracking-tighter tabular-nums text-foreground drop-shadow-sm">
-             {new Intl.NumberFormat('ko-KR').format(currentStats.tExpense)}
-             <span className="text-2xl font-bold ml-1 text-muted-foreground font-sans tracking-normal">원</span>
-           </h1>
-           
-           {/* 전월 대비 증감 배지 */}
-           <div className={`mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[15px] font-bold shadow-sm ring-1 ring-inset transition-all ${
-             expenseDiff > 0 
-               ? 'bg-red-500/10 text-red-600 ring-red-500/20' 
-               : expenseDiff < 0 
-                 ? 'bg-blue-500/10 text-blue-600 ring-blue-500/20' 
-                 : 'bg-secondary text-secondary-foreground ring-black/5'
-           }`}>
-             {expenseDiff > 0 ? '📈' : expenseDiff < 0 ? '📉' : '➖'}
-             {expenseDiff === 0 
-               ? '지난달과 지출이 같아요' 
-               : <span>지난달보다 <span className="tabular-nums">{new Intl.NumberFormat('ko-KR').format(Math.abs(expenseDiff))}원</span> {expenseDiff > 0 ? '더 썼어요' : '덜 썼어요'}</span>}
-           </div>
-        </div>
+        <StatsTotalInsight 
+            totalExpense={currentStats.totalExpense} 
+            expenseDiff={expenseDiff} 
+        />
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -293,7 +238,7 @@ export default function StatsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 fill-mode-backwards">
-             {/* 예산 분석 카드 (New) */}
+             {/* 예산 분석 카드 */}
              <BudgetAnalysisCard data={budgetAnalysis} />
 
             {/* 지출 카드 */}
@@ -307,7 +252,7 @@ export default function StatsPage() {
               <StatSection 
                 title="지출" 
                 stats={expenseStats} 
-                total={currentStats.tExpense} 
+                total={currentStats.totalExpense} 
                 type="expense" 
                 diffAmount={expenseDiff} 
               />
@@ -324,13 +269,13 @@ export default function StatsPage() {
               <StatSection 
                 title="수입" 
                 stats={incomeStats} 
-                total={currentStats.tIncome} 
+                total={currentStats.totalIncome} 
                 type="income" 
                 diffAmount={incomeDiff} 
               />
             </div>
             
-            {/* 월별 추이 (BarChart) */}
+            {/* 월별 추이 */}
             <div className="col-span-1 md:col-span-2 bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">
               <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
