@@ -10,6 +10,7 @@ import { showToast } from '@/lib/toast';
 
 import BudgetGoalItem from '@/components/budget/BudgetGoalItem';
 import BudgetFormDialog from '@/components/budget/BudgetFormDialog';
+import BudgetDeleteDialog from '@/components/budget/BudgetDeleteDialog';
 
 export default function BudgetSettingsPage() {
   const router = useRouter();
@@ -17,8 +18,10 @@ export default function BudgetSettingsPage() {
   const { categories } = useUserSettings();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // 카테고리 예산 목록 (전체 예산 제외)
   const categoryBudgets = budgetGoals.filter(g => g.category_id !== null);
@@ -51,15 +54,24 @@ export default function BudgetSettingsPage() {
     );
   };
 
-  const handleDelete = (id: string) => {
-    // 다이얼로그 대신 브라우저 confirm 사용 (간단한 삭제 확인)
-    // 혹은 추후 AlertDialog로 교체 가능
-    if (confirm('정말 삭제하시겠습니까?')) {
-        deleteBudgetGoal(id, {
-            onSuccess: () => showToast.success('삭제되었습니다'),
-            onError: () => showToast.error('삭제 실패'),
-        });
-    }
+  const handleDeleteClick = (id: string) => {
+    setDeleteTargetId(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTargetId) return;
+
+    deleteBudgetGoal(deleteTargetId, {
+        onSuccess: () => {
+            showToast.success('삭제되었습니다');
+            setIsDeleteDialogOpen(false);
+            setDeleteTargetId(null);
+        },
+        onError: () => {
+            showToast.error('삭제 실패');
+        },
+    });
   };
 
   const openCreate = () => {
@@ -133,7 +145,7 @@ export default function BudgetSettingsPage() {
                             key={goal.id} 
                             goal={goal} 
                             onEdit={openEdit} 
-                            onDelete={handleDelete} 
+                            onDelete={handleDeleteClick} 
                         />
                     ))
                 )}
@@ -151,6 +163,12 @@ export default function BudgetSettingsPage() {
           amount={amount}
           onChangeAmount={setAmount}
           onSubmit={handleSubmit}
+      />
+
+      <BudgetDeleteDialog 
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          onConfirm={handleConfirmDelete}
       />
     </main>
   );
