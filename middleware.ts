@@ -14,7 +14,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - icons (PWA icons)
      * - auth (auth callback routes)
+     * - api/push (push notification API)
+     * - api/cron (cron job API)
      */
-    '/((?!_next/static|_next/image|favicon.ico|icons|auth).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icons|auth|api/push|api/cron).*)',
   ],
 };
