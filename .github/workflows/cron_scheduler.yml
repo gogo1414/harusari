@@ -21,44 +21,45 @@ jobs:
       - name: Call API Endpoints
         run: |
           # 현재 시간 (UTC)
-          CURRENT_HOUR=$(date -u +%H)
-          CURRENT_DAY=$(date -u +%d)
-          
+          CURRENT_HOUR=$(date -u +%H | sed 's/^0*//')  # 선행 0 제거
+          CURRENT_HOUR=${CURRENT_HOUR:-0}  # 빈 값이면 0
+          CURRENT_DAY=$(date -u +%d | sed 's/^0*//')
+
           echo "Current UTC Hour: $CURRENT_HOUR"
           echo "Current UTC Day: $CURRENT_DAY"
-          
+
           # 공통 헤더
           AUTH_HEADER="Authorization: Bearer ${{ secrets.CRON_SECRET }}"
           BASE_URL="https://harusari-liart.vercel.app"
-          
-          # 1. 고정지출 생성 (15:00 UTC)
-          if [ "$CURRENT_HOUR" -eq 15 ]; then
+
+          # 1. 고정지출 생성 (15:00~16:59 UTC = 00:00~01:59 KST)
+          if [ "$CURRENT_HOUR" -ge 15 ] && [ "$CURRENT_HOUR" -lt 17 ]; then
             echo "Triggering Recurring Transactions..."
-            curl -X GET "$BASE_URL/api/cron/recurring" \
+            curl -s -X GET "$BASE_URL/api/cron/recurring" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
-          
-          # 2. 아침 알림 (00:00 UTC)
-          if [ "$CURRENT_HOUR" -eq 00 ]; then
+
+          # 2. 아침 알림 (00:00~01:59 UTC = 09:00~10:59 KST)
+          if [ "$CURRENT_HOUR" -ge 0 ] && [ "$CURRENT_HOUR" -lt 2 ]; then
             echo "Triggering Morning Push..."
-            curl -X GET "$BASE_URL/api/push/send?type=morning" \
+            curl -s -X GET "$BASE_URL/api/push/send?type=morning" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
-          
-          # 3. 월간 분석 (01:00 UTC, 1일)
-          if [ "$CURRENT_HOUR" -eq 01 ] && [ "$CURRENT_DAY" -eq 01 ]; then
+
+          # 3. 월간 분석 (01:00~02:59 UTC, 1일 = 10:00~11:59 KST)
+          if [ "$CURRENT_HOUR" -ge 1 ] && [ "$CURRENT_HOUR" -lt 3 ] && [ "$CURRENT_DAY" -eq 1 ]; then
             echo "Triggering Monthly Analysis Push..."
-            curl -X GET "$BASE_URL/api/push/send?type=monthly" \
+            curl -s -X GET "$BASE_URL/api/push/send?type=monthly" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
-          
-          # 4. 저녁 알림 (12:00 UTC)
-          if [ "$CURRENT_HOUR" -eq 12 ]; then
+
+          # 4. 저녁 알림 (12:00~13:59 UTC = 21:00~22:59 KST)
+          if [ "$CURRENT_HOUR" -ge 12 ] && [ "$CURRENT_HOUR" -lt 14 ]; then
             echo "Triggering Evening Push..."
-            curl -X GET "$BASE_URL/api/push/send?type=evening" \
+            curl -s -X GET "$BASE_URL/api/push/send?type=evening" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
