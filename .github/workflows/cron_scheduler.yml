@@ -29,7 +29,7 @@ jobs:
           
           # 공통 헤더
           AUTH_HEADER="Authorization: Bearer ${{ secrets.CRON_SECRET }}"
-          BASE_URL="https://harusari.vercel.app"
+          BASE_URL="https://harusari-liart.vercel.app"
           
           # 1. 고정지출 생성 (15:00 UTC)
           if [ "$CURRENT_HOUR" -eq 15 ]; then
