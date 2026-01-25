@@ -37,28 +37,40 @@ export async function GET(request: Request) {
     const items = recurringItems as FixedTransaction[];
     
     for (const item of items) {
-      // 2. 조건 검사
-      
-      // 2-1. 날짜 확인
-      if (item.day !== currentDay) continue;
-
-      // 2-2. 이번 달 이미 생성 확인
+      // 2. 중복 방지 체크 (이번 달에 이미 생성되었는지 확인)
+      // last_generated가 "2024-02" 등으로 시작하면 이미 생성된 것
       if (item.last_generated && item.last_generated.startsWith(currentMonthStr)) {
         continue;
       }
 
-      // 2-3. 종료일 확인
+      // 3. 종료일 확인
+      // 이번 달의 말일까지 유효한지 체크해야 하지만, 
+      // 간단히 "현재 시점" 기준으로 종료일이 지났는지만 확인해도 충분
       if (item.end_type === 'date' && item.end_date) {
-        if (new Date(item.end_date) < kstDate) continue;
+        // 만약 종료일이 이번 달 1일보다 이전이라면 생성하지 않음
+        const endDateObj = new Date(item.end_date);
+        const thisMonthFirst = new Date(kstDate.getFullYear(), kstDate.getMonth(), 1);
+        if (endDateObj < thisMonthFirst) continue;
       }
 
-      // 3. 거래 생성
+      // 4. 날짜 계산 (YYYY-MM-DD)
+      // 만약 2월인데 30일로 설정되어 있다면 -> 2월 29일(말일)로 조정
+      const year = kstDate.getFullYear();
+      const month = kstDate.getMonth(); // 0-based
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      
+      const targetDay = Math.min(item.day, daysInMonth); 
+      // 예: item.day가 31이고 2월(29일)이면 -> targetDay는 29
+      
+      const targetDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+
+      // 5. 거래 생성
       const insertPayload: TransactionInsert = {
         user_id: item.user_id,
         amount: item.amount,
         type: item.type,
         category_id: item.category_id,
-        date: currentDateStr,
+        date: targetDateStr, // 미래 날짜라도 그대로 등록
         memo: item.memo,
         source_fixed_id: item.fixed_transaction_id,
       };
@@ -69,15 +81,16 @@ export async function GET(request: Request) {
         .insert(insertPayload);
 
       if (insertError) {
+        // 에러 로그는 유지 (운영 중 필요)
         console.error(`Failed to insert transaction for fixed_id ${item.fixed_transaction_id}:`, insertError);
         continue;
       }
 
-      // 4. last_generated 업데이트
+      // 6. last_generated 업데이트 (YYYY-MM-DD 형식으로 저장되지만, 체크 시에는 startsWith(YYYY-MM) 사용)
       await supabase
         .from('fixed_transactions')
         // @ts-expect-error - last_generated 타입 불일치
-        .update({ last_generated: currentDateStr })
+        .update({ last_generated: targetDateStr })
         .eq('fixed_transaction_id', item.fixed_transaction_id);
         
       processedItems.push(item.fixed_transaction_id);
