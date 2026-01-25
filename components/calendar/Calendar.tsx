@@ -67,16 +67,24 @@ export default function Calendar({
 
   // 급여 사이클 시작일 계산
   const currentCycleStart = useMemo(() => {
-    const monthStart = startOfMonth(currentDate);
+    // startOfMonth 제거: Smart Cycle을 위해 현재 선택된 날짜 그 자체를 기준으로 계산
+    const baseDate = currentDate; 
     const startDay = cycleStartDay;
 
     let cycleStart: Date;
 
-    // 급여일이 1일이 아니면 전달 급여일부터 시작
-    if (1 < startDay) {
-      cycleStart = setDate(subMonths(monthStart, 1), startDay);
+    // 현재 날짜의 일자가 시작일보다 작으면 이전 달의 시작일이 기준
+    // 예: 시작일 25일, 현재 10일 -> 지난달 25일 시작
+    if (baseDate.getDate() < startDay) {
+       cycleStart = setDate(subMonths(baseDate, 1), startDay);
     } else {
-      cycleStart = setDate(monthStart, startDay);
+       // 예: 시작일 25일, 현재 26일 -> 이번달 25일 시작
+       cycleStart = setDate(baseDate, startDay);
+    }
+    
+    // 1일인 경우는 그냥 해당 월 1일
+    if (startDay === 1) {
+        cycleStart = setDate(baseDate, 1);
     }
 
     return startOfDay(cycleStart);
