@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import Calendar from '@/components/calendar/Calendar';
 import { CalendarSkeleton, SummaryCardSkeleton } from '@/components/common/Skeleton';
 import DailyTransactionCard from '@/components/common/DailyTransactionCard';
@@ -98,7 +98,7 @@ export default function HomeCalendarSection({
         <h2 className="px-2 text-lg font-bold text-foreground mb-3 flex items-center gap-2">
           이번 달 현황
           <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-             {format(currentDate, 'M월')}
+             {format(cycleStartDay >= 20 ? addMonths(currentDate, 1) : currentDate, 'M월')}
           </span>
         </h2>
         {isLoading ? (
