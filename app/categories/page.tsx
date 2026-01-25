@@ -4,9 +4,9 @@ import type { Database } from '@/types/database';
 
 type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, Trash2, Edit2, Loader2 } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Edit2, Loader2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -22,7 +22,106 @@ import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import type { Category } from '@/types/database';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { showToast } from '@/lib/toast';
 import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
+
+// dnd-kit imports
+import {
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  type DragEndEvent,
+  type DropAnimation,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// 정렬 가능한 카테고리 아이템 컴포넌트
+function SortableCategoryItem({ 
+  category, 
+  onEdit, 
+  onDelete 
+}: { 
+  category: Category; 
+  onEdit: (category: Category) => void;
+  onDelete: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.category_id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 1 : 0,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group flex items-center justify-between rounded-2xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:border-primary/20 hover:shadow-md touch-manipulation"
+    >
+      <div className="flex items-center gap-4 flex-1">
+        {/* 드래그 핸들 */}
+        <div 
+          {...attributes} 
+          {...listeners} 
+          className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-foreground px-1"
+        >
+          <GripVertical className="h-5 w-5" />
+        </div>
+
+        <CategoryIcon 
+          iconName={category.icon} 
+          className="h-12 w-12 transition-transform group-hover:scale-105" 
+          variant="squircle" 
+          showBackground={true} 
+        />
+        <span className="font-semibold text-foreground/90">{category.name}</span>
+      </div>
+      
+      {/* 수정/삭제 버튼 */}
+      <div className="flex gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all"
+          onClick={() => onEdit(category)}
+          aria-label={`${category.name} 수정`}
+        >
+          <Edit2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95 transition-all"
+          onClick={() => onDelete(category.category_id)}
+          aria-label={`${category.name} 삭제`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function CategoryManagementPage() {
   const router = useRouter();
@@ -34,16 +133,29 @@ export default function CategoryManagementPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('money'); // 기본값 변경
+  const [icon, setIcon] = useState('money');
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
+  // 로컬 상태로 정렬 순서 관리 (optimistic updates 위함)
+  const [orderedCategories, setOrderedCategories] = useState<Category[]>([]);
+
+  // 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // 카테고리 조회
-  const { data: categories = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
+        // sort_order 기준 정렬, 없으면 created_at
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true });
       
       if (error) throw error;
@@ -51,7 +163,42 @@ export default function CategoryManagementPage() {
     },
   });
 
-  const filteredCategories = categories.filter((c) => c.type === type);
+  const categories = data || [];
+
+  // 카테고리 데이터가 변경되면 로컬 상태 업데이트
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setOrderedCategories(data.filter(c => c.type === type));
+    } else {
+      setOrderedCategories([]);
+    }
+  }, [data, type]);
+
+  // 순서 변경 Mutation
+  const reorderMutation = useMutation({
+    mutationFn: async (newOrder: Category[]) => {
+      // RPC 호환을 위해 필요한 데이터만 추려서 전송
+      const payload = newOrder.map((cat, index) => ({
+        category_id: cat.category_id,
+        sort_order: index
+      }));
+
+      // @ts-expect-error - RPC types not generated yet
+      const { error } = await supabase.rpc('reorder_categories', { 
+        items: payload 
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      // 낙관적 업데이트가 이미 화면에 반영되어 있으므로 토스트는 굳이 안 띄우거나 짧게 처리
+    },
+    onError: (error) => {
+      showToast.error('순서 저장에 실패했습니다. 다시 시도해주세요.');
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
 
   // 추가 Mutation
   const addMutation = useMutation({
@@ -59,12 +206,18 @@ export default function CategoryManagementPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // @ts-expect-error - Supabase insert 타입 불일치
+      // 현재 목록의 마지막 순서 + 1
+      const maxSortOrder = orderedCategories.length > 0 
+        ? Math.max(...orderedCategories.map(c => c.sort_order || 0)) 
+        : -1;
+
+      // @ts-expect-error - Supabase insert 타입 불일치 가능성
       const { error } = await supabase.from('categories').insert({
         user_id: user.id,
         name: newCategory.name,
         icon: newCategory.icon,
         type: newCategory.type as 'income' | 'expense',
+        sort_order: maxSortOrder + 1,
       } as CategoryInsert);
       if (error) throw error;
     },
@@ -104,6 +257,25 @@ export default function CategoryManagementPage() {
     },
   });
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setOrderedCategories((items) => {
+        const oldIndex = items.findIndex((item) => item.category_id === active.id);
+        const newIndex = items.findIndex((item) => item.category_id === over.id);
+        
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        
+        // 서버에 순서 업데이트 요청
+        // 디바운싱을 적용하거나 즉시 요청할 수 있음. 여기서는 즉시 요청.
+        reorderMutation.mutate(newOrder);
+        
+        return newOrder;
+      });
+    }
+  };
+
   const openAddDialog = () => {
     setEditingCategory(null);
     setName('');
@@ -136,6 +308,16 @@ export default function CategoryManagementPage() {
 
   const isSaving = addMutation.isPending || updateMutation.isPending;
 
+  const dropAnimation: DropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: {
+        active: {
+          opacity: '0.5',
+        },
+      },
+    }),
+  };
+
   return (
     <div className="min-h-dvh bg-background p-4 pb-20">
       <div className="mb-6 flex items-center gap-2">
@@ -161,55 +343,37 @@ export default function CategoryManagementPage() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3">
-          {filteredCategories.map((category) => (
-            <div
-              key={category.category_id}
-              className="group flex items-center justify-between rounded-2xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
-            >
-              <div className="flex items-center gap-4">
-                <CategoryIcon 
-                  iconName={category.icon} 
-                  className="h-12 w-12 transition-transform group-hover:scale-105" 
-                  variant="squircle" 
-                  showBackground={true} 
-                />
-                <span className="font-semibold text-foreground/90">{category.name}</span>
-              </div>
-              {/* 수정/삭제 버튼 - 항상 보이고 터치 친화적 */}
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all"
-                  onClick={() => openEditDialog(category)}
-                  aria-label={`${category.name} 수정`}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95 transition-all"
-                  onClick={() => handleDelete(category.category_id)}
-                  aria-label={`${category.name} 삭제`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-
-          <button
-            onClick={openAddDialog}
-            className="group flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-muted-foreground/20 p-6 text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5"
+        <DndContext 
+          sensors={sensors} 
+          collisionDetection={closestCenter} 
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext 
+            items={orderedCategories.map(c => c.category_id)} 
+            strategy={verticalListSortingStrategy}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted-foreground/10 transition-colors group-hover:bg-primary/20">
-              <Plus className="h-5 w-5 group-hover:text-primary" />
+            <div className="grid grid-cols-1 gap-3">
+              {orderedCategories.map((category) => (
+                <SortableCategoryItem 
+                  key={category.category_id} 
+                  category={category} 
+                  onEdit={openEditDialog}
+                  onDelete={handleDelete}
+                />
+              ))}
+
+              <button
+                onClick={openAddDialog}
+                className="group flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-muted-foreground/20 p-6 text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted-foreground/10 transition-colors group-hover:bg-primary/20">
+                  <Plus className="h-5 w-5 group-hover:text-primary" />
+                </div>
+                <span className="font-medium group-hover:text-primary">새 카테고리 추가</span>
+              </button>
             </div>
-            <span className="font-medium group-hover:text-primary">새 카테고리 추가</span>
-          </button>
-        </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* 다이얼로그 */}
