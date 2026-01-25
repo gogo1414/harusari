@@ -175,10 +175,7 @@ export default function CategoryManagementPage() {
   // 화면에 보여줄 카테고리 목록
   const orderedCategories = localOrder || serverCategories;
 
-  // 타입이나 서버 데이터가 변경되면 로컬 오버라이드 초기화
-  useEffect(() => {
-    setLocalOrder(null);
-  }, [serverCategories]);
+
 
   // Dnd-kit 센서 설정
   const sensors = useSensors(
@@ -242,6 +239,7 @@ export default function CategoryManagementPage() {
         icon: newCategory.icon,
         type: newCategory.type as 'income' | 'expense',
         sort_order: maxSortOrder + 1,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       if (error) throw error;
     },
@@ -341,7 +339,10 @@ export default function CategoryManagementPage() {
 
       <Tabs
         value={type}
-        onValueChange={(v) => setType(v as 'expense' | 'income')}
+        onValueChange={(v) => {
+          setType(v as 'expense' | 'income');
+          setLocalOrder(null); // 탭 변경 시 정렬 순서 초기화
+        }}
         className="mb-6 w-full"
       >
         <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1">

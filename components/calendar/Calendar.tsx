@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import {
   format,
-  startOfMonth,
   startOfWeek,
   endOfWeek,
   addDays,
