@@ -62,10 +62,10 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
   // 2. 카테고리 조회 및 자동 복구
   const { data: categories = [], isLoading: isCategoriesLoading } = useQuery({
-    queryKey: ['categories', userId],
+    queryKey: ['categories'],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase.from('categories').select('*').order('created_at');
+      const { data, error } = await supabase.from('categories').select('*').order('sort_order', { ascending: true }).order('created_at');
       if (error) throw error;
       return data as Category[];
     },
@@ -97,7 +97,11 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       (async () => {
         const { error } = await supabase.from('categories').insert(
           // @ts-expect-error - 기본 카테고리 타입 불일치
-          defaultCategories.map(c => ({ user_id: userId, ...c }))
+          defaultCategories.map((c, index) => ({ 
+            user_id: userId, 
+            ...c,
+            sort_order: index // 기본 순서 부여 (0부터 시작)
+          }))
         );
         if (!error) {
           queryClient.invalidateQueries({ queryKey: ['categories'] });
