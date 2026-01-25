@@ -40,6 +40,7 @@ export interface Database {
           icon: string;
           is_default: boolean;
           created_at: string;
+          sort_order: number | null;
         };
         Insert: {
           category_id?: string;
@@ -49,12 +50,14 @@ export interface Database {
           icon: string;
           is_default?: boolean;
           created_at?: string;
+          sort_order?: number | null;
         };
         Update: {
           name?: string;
           type?: 'income' | 'expense';
           icon?: string;
           is_default?: boolean;
+          sort_order?: number | null;
         };
       };
       transactions: {
