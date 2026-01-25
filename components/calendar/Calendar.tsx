@@ -149,7 +149,11 @@ export default function Calendar({
             onClick={togglePicker}
             className="flex items-center gap-1 text-lg font-bold text-foreground hover:bg-muted/50 px-3 py-1 rounded-full transition-colors"
           >
-            {format(currentDate, 'yyyy년 M월', { locale: ko })}
+            {format(
+              cycleStartDay >= 20 ? addMonths(currentDate, 1) : currentDate,
+              'yyyy년 M월',
+              { locale: ko }
+            )}
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isPickerOpen ? 'rotate-180' : ''}`} />
           </button>
 
