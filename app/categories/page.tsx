@@ -30,7 +30,8 @@ import {
   DndContext, 
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
@@ -70,22 +71,34 @@ function SortableCategoryItem({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 1 : 0,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.8 : 1,
+    scale: isDragging ? 1.05 : 1,
+  };
+
+  // 햅틱 피드백 (모바일)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // 편집/삭제 버튼은 드래그 트리거 방지
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center justify-between rounded-2xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:border-primary/20 hover:shadow-md touch-manipulation"
+      {...attributes}
+      {...listeners}
+      onPointerDown={handlePointerDown}
+      className={`group flex items-center justify-between rounded-2xl border bg-card p-4 shadow-sm transition-all touch-manipulation relative
+        ${isDragging 
+          ? 'border-primary border-2 shadow-xl bg-card z-50 cursor-grabbing' 
+          : 'border-border/50 hover:border-primary/20 hover:shadow-md cursor-grab active:cursor-grabbing'
+        }`}
     >
-      <div className="flex items-center gap-4 flex-1">
-        {/* 드래그 핸들 */}
-        <div 
-          {...attributes} 
-          {...listeners} 
-          className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-foreground px-1"
-        >
+      <div className="flex items-center gap-4 flex-1 pointer-events-none select-none">
+        {/* 드래그 핸들 아이콘 (시각적 힌트로 유지하되 흐리게 처리) */}
+        <div className="text-muted-foreground/30 px-1">
           <GripVertical className="h-5 w-5" />
         </div>
 
@@ -99,7 +112,12 @@ function SortableCategoryItem({
       </div>
       
       {/* 수정/삭제 버튼 */}
-      <div className="flex gap-2">
+      {/* 
+        onPointerDown 외부 전파 막기를 위해 stopPropagation 추가 
+        dnd-kit의 activationConstraint가 동작하려면 이벤트가 센서에 도달해야 하므로 
+        버튼 클릭 시엔 드래그가 시작되지 않도록 처리 필요
+      */}
+      <div className="flex gap-2" onPointerDown={(e) => e.stopPropagation()}>
         <Button
           variant="ghost"
           size="icon"
@@ -141,7 +159,17 @@ export default function CategoryManagementPage() {
 
   // 센서 설정
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 10, // 10px 이상 이동해야 드래그 시작 (클릭과 구분)
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250, // 250ms 동안 꾹 눌러야 드래그 시작
+        tolerance: 5, // 꾹 누르는 동안 5px 이내 움직임 허용
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
