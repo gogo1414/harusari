@@ -4,7 +4,7 @@ import type { Database } from '@/types/database';
 
 type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Trash2, Edit2, Loader2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,10 +34,7 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
-  DragOverlay,
-  defaultDropAnimationSideEffects,
   type DragEndEvent,
-  type DropAnimation,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -154,53 +151,52 @@ export default function CategoryManagementPage() {
   const [icon, setIcon] = useState('money');
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
-  // 로컬 상태로 정렬 순서 관리 (optimistic updates 위함)
-  const [orderedCategories, setOrderedCategories] = useState<Category[]>([]);
+  // 카테고리 데이터 불러오기
+  const { data, isLoading } = useQuery<Category[]>({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('sort_order', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  // 센서 설정
+  // 로컬 상태로 정렬 순서 관리 (optimistic updates 위함)
+  // 서버 데이터와 로컬 오버라이드를 분리하여 파생 상태로 관리
+  const [localOrder, setLocalOrder] = useState<Category[] | null>(null);
+
+  const serverCategories = useMemo(() => {
+    return data?.filter(c => c.type === type) || [];
+  }, [data, type]);
+
+  // 화면에 보여줄 카테고리 목록
+  const orderedCategories = localOrder || serverCategories;
+
+  // 타입이나 서버 데이터가 변경되면 로컬 오버라이드 초기화
+  useEffect(() => {
+    setLocalOrder(null);
+  }, [serverCategories]);
+
+  // Dnd-kit 센서 설정
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 10, // 10px 이상 이동해야 드래그 시작 (클릭과 구분)
+        distance: 8, // 8px 드래그해야 활성화
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250, // 250ms 동안 꾹 눌러야 드래그 시작
-        tolerance: 5, // 꾹 누르는 동안 5px 이내 움직임 허용
+        delay: 200, // 200ms 길게 눌러야 활성화
+        tolerance: 6,
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // 카테고리 조회
-  const { data, isLoading } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        // sort_order 기준 정렬, 없으면 created_at
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      return data as Category[];
-    },
-  });
-
-  const categories = data || [];
-
-  // 카테고리 데이터가 변경되면 로컬 상태 업데이트
-  useEffect(() => {
-    if (data && data.length > 0) {
-      setOrderedCategories(data.filter(c => c.type === type));
-    } else {
-      setOrderedCategories([]);
-    }
-  }, [data, type]);
 
   // 순서 변경 Mutation
   const reorderMutation = useMutation({
@@ -222,9 +218,10 @@ export default function CategoryManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       // 낙관적 업데이트가 이미 화면에 반영되어 있으므로 토스트는 굳이 안 띄우거나 짧게 처리
     },
-    onError: (error) => {
+    onError: () => {
       showToast.error('순서 저장에 실패했습니다. 다시 시도해주세요.');
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setLocalOrder(null); // 실패 시 원복
     },
   });
 
@@ -239,14 +236,13 @@ export default function CategoryManagementPage() {
         ? Math.max(...orderedCategories.map(c => c.sort_order || 0)) 
         : -1;
 
-      // @ts-expect-error - Supabase insert 타입 불일치 가능성
       const { error } = await supabase.from('categories').insert({
         user_id: user.id,
         name: newCategory.name,
         icon: newCategory.icon,
         type: newCategory.type as 'income' | 'expense',
         sort_order: maxSortOrder + 1,
-      } as CategoryInsert);
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -289,18 +285,16 @@ export default function CategoryManagementPage() {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      setOrderedCategories((items) => {
-        const oldIndex = items.findIndex((item) => item.category_id === active.id);
-        const newIndex = items.findIndex((item) => item.category_id === over.id);
-        
-        const newOrder = arrayMove(items, oldIndex, newIndex);
-        
-        // 서버에 순서 업데이트 요청
-        // 디바운싱을 적용하거나 즉시 요청할 수 있음. 여기서는 즉시 요청.
-        reorderMutation.mutate(newOrder);
-        
-        return newOrder;
-      });
+      const oldIndex = orderedCategories.findIndex((item) => item.category_id === active.id);
+      const newIndex = orderedCategories.findIndex((item) => item.category_id === over.id);
+      
+      const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
+      
+      // 로컬 상태 즉시 업데이트
+      setLocalOrder(newOrder);
+      
+      // 서버에 순서 업데이트 요청
+      reorderMutation.mutate(newOrder);
     }
   };
 
@@ -335,16 +329,6 @@ export default function CategoryManagementPage() {
   };
 
   const isSaving = addMutation.isPending || updateMutation.isPending;
-
-  const dropAnimation: DropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: {
-        active: {
-          opacity: '0.5',
-        },
-      },
-    }),
-  };
 
   return (
     <div className="min-h-dvh bg-background p-4 pb-20">
