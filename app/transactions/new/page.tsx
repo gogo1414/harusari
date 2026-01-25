@@ -144,9 +144,77 @@ function NewTransactionContent() {
 
         if (fixedError) throw fixedError;
         sourceFixedId = (fixedData as FixedTransactionRow).fixed_transaction_id;
+
+        // 과거 내역 일괄 생성 로직 (Recurring Page와 동일하게 적용)
+        try {
+            const startDate = new Date(data.date);
+            const now = new Date();
+            const day = startDate.getDate();
+            
+            let pointer = new Date(startDate);
+            const generatedDates: string[] = [];
+    
+            // 루프: pointer가 이번 달(포함) 이전인 동안 반복
+            while (
+              pointer.getFullYear() < now.getFullYear() || 
+              (pointer.getFullYear() === now.getFullYear() && pointer.getMonth() <= now.getMonth())
+            ) {
+              const year = pointer.getFullYear();
+              const month = pointer.getMonth(); // 0-based
+              
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const targetDay = Math.min(day, daysInMonth);
+              
+              const targetDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+              const targetDateObj = new Date(targetDateStr);
+    
+              // 종료일 체크
+              if (data.end_type === 'date' && data.end_date) {
+                 const endDateObj = new Date(data.end_date);
+                 if (targetDateObj > endDateObj) break;
+              }
+    
+              // 트랜잭션 생성
+              const { error: txError } = await supabase
+                  .from('transactions')
+                  // @ts-expect-error - Supabase insert 타입 불일치
+                  .insert({
+                      user_id: user.id,
+                      amount: data.amount,
+                      type: data.type,
+                      category_id: data.category_id,
+                      date: targetDateStr,
+                      memo: data.memo,
+                      source_fixed_id: sourceFixedId,
+                  } as TransactionInsert);
+    
+              if (!txError) {
+                 generatedDates.push(targetDateStr);
+              } else {
+                 console.error(`Failed to generate transaction for ${targetDateStr}`, txError);
+              }
+    
+              pointer = new Date(year, month + 1, 1);
+            }
+    
+            // 가장 최근에 생성된 날짜로 last_generated 업데이트
+            if (generatedDates.length > 0) {
+                const lastGeneratedDate = generatedDates[generatedDates.length - 1];
+                await supabase
+                    .from('fixed_transactions')
+                    // @ts-expect-error - update 타입 불일치
+                    .update({ last_generated: lastGeneratedDate })
+                    .eq('fixed_transaction_id', sourceFixedId);
+            }
+
+        } catch (genError) {
+             console.error('Failed to generate initial transactions for recurring:', genError);
+        }
+        
+        return; // Recurring 처리가 끝났으므로 함수 종료 (중복 insert 방지)
       }
 
-      // 3. 일반 거래 내역 등록
+      // 3. 일반 거래 내역 등록 (반복 아님)
       // @ts-expect-error - Supabase insert 타입 불일치
       const { error: transactionError } = await supabase.from('transactions').insert({
         user_id: user.id,
