@@ -15,8 +15,8 @@ export default meta;
 type Story = StoryObj<typeof BottomSheet>;
 
 const mockCategories = [
-  { category_id: '1', name: '식비', icon: 'food', type: 'expense' as const, user_id: 'user1', is_default: false, created_at: '' },
-  { category_id: '2', name: '월급', icon: 'salary', type: 'income' as const, user_id: 'user1', is_default: false, created_at: '' },
+  { category_id: '1', name: '식비', icon: 'food', type: 'expense' as const, user_id: 'user1', is_default: false, created_at: '', sort_order: 0 },
+  { category_id: '2', name: '월급', icon: 'salary', type: 'income' as const, user_id: 'user1', is_default: false, created_at: '', sort_order: 1 },
 ];
 
 const mockTransactions = [

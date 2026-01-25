@@ -36,6 +36,7 @@ const mockCategories = [
     icon: 'food',
     is_default: false,
     created_at: new Date().toISOString(),
+    sort_order: 0,
   },
   {
     category_id: '2',
@@ -45,6 +46,7 @@ const mockCategories = [
     icon: 'bus',
     is_default: false,
     created_at: new Date().toISOString(),
+    sort_order: 1,
   },
   {
     category_id: '3',
@@ -54,6 +56,7 @@ const mockCategories = [
     icon: 'money',
     is_default: false,
     created_at: new Date().toISOString(),
+    sort_order: 2,
   },
   {
     category_id: '4',
@@ -63,6 +66,7 @@ const mockCategories = [
     icon: 'shopping',
     is_default: false,
     created_at: new Date().toISOString(),
+    sort_order: 3,
   },
   {
     category_id: '5',
@@ -72,6 +76,7 @@ const mockCategories = [
     icon: 'home',
     is_default: false,
     created_at: new Date().toISOString(),
+    sort_order: 4,
   },
   {
     category_id: '6',
@@ -81,6 +86,7 @@ const mockCategories = [
     icon: 'salary',
     is_default: false,
     created_at: new Date().toISOString(),
+    sort_order: 5,
   },
   {
     category_id: '7',
@@ -90,6 +96,7 @@ const mockCategories = [
     icon: 'money',
     is_default: false,
     created_at: new Date().toISOString(),
+    sort_order: 6,
   },
 ];
 
