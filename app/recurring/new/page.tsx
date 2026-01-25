@@ -16,7 +16,7 @@ export default function NewRecurringPage() {
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('categories').select('*');
+      const { data, error } = await supabase.from('categories').select('*').order('sort_order', { ascending: true }).order('created_at');
       if (error) throw error;
       return data as Category[];
     },

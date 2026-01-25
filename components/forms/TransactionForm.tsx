@@ -118,12 +118,24 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // 기존 카테고리 중 가장 큰 sort_order 조회
+      const { data: maxOrderData } = await supabase
+        .from('categories')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1)
+        .maybeSingle(); // single() 대신 maybeSingle() 사용 (결과가 없을 수도 있음)
+      
+      const currentMax = maxOrderData ? (maxOrderData as { sort_order: number }).sort_order : 0;
+      const nextOrder = (currentMax ?? 0) + 1;
+
       // @ts-expect-error - Supabase insert 타입 에러 회피
       const { error } = await supabase.from('categories').insert({
         user_id: user.id,
         name: newCategory.name,
         icon: newCategory.icon,
         type: newCategory.type,
+        sort_order: nextOrder,
       });
       if (error) throw error;
     },
