@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: '하루살이',
   description: '오늘 벌어 오늘 사는 1인 가계부',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icons/icon-192.png',
+    shortcut: '/icons/icon-192.png',
+    apple: '/icons/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -18,7 +23,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#3b82f6' },
+    { media: '(prefers-color-scheme: light)', color: '#3182F6' },
     { media: '(prefers-color-scheme: dark)', color: '#1e3a5f' },
   ],
 };
