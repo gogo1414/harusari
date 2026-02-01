@@ -120,39 +120,59 @@ export async function GET(request: Request) {
           }
         } 
         else if (type === 'evening') {
-          // 저녁: 일일 브리핑 (지출액 요약)
+          // 저녁: 일일 브리핑 (수입/지출 요약)
           // 1. 오늘 날짜 구하기 (KST 기준)
-          // Vercel은 UTC 기준이므로, UTC+9 시간을 구해서 날짜 문자열 생성
           const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
           const todayStr = kstTime.toISOString().split('T')[0];
           
-          // 2. 오늘의 지출 내역 합산
+          // 2. 오늘의 수입/지출 내역 합산
           const { data } = await supabase
             .from('transactions')
             .select('amount, type')
             .eq('user_id', user_id)
-            .eq('date', todayStr)
-            .eq('type', 'expense');
+            .eq('date', todayStr);
 
-          const expenses = data as unknown as { amount: number }[] | null;
-          const totalAmount = expenses ? expenses.reduce((sum, item) => sum + item.amount, 0) : 0;
-          const hasTransactions = expenses && expenses.length > 0;
+          const transactions = data as unknown as { amount: number; type: string }[] | null;
+          
+          let totalIncome = 0;
+          let totalExpense = 0;
 
-          // 3. 메시지 생성 (무조건 발송)
-          if (hasTransactions) {
-              payload = {
-                  title: '🌙 오늘 하루 지출 요약',
-                  body: `오늘 총 ${totalAmount.toLocaleString()}원을 지출하셨어요. 꼼꼼한 기록 칭찬해요! 👍`,
-                  url: '/',
-                  icon: '/icons/icon-192.png'
-              };
+          if (transactions) {
+            transactions.forEach(t => {
+              if (t.type === 'income') totalIncome += t.amount;
+              else if (t.type === 'expense') totalExpense += t.amount;
+            });
+          }
+
+          // 3. 메시지 생성
+          if (totalIncome > 0 && totalExpense > 0) {
+            payload = {
+              title: '🌙 오늘 하루 수입/지출 요약',
+              body: `오늘 ${totalExpense.toLocaleString()}원 쓰고, ${totalIncome.toLocaleString()}원 벌었습니다.`,
+              url: '/',
+              icon: '/icons/icon-192.png'
+            };
+          } else if (totalExpense > 0) {
+            payload = {
+              title: '🌙 오늘 하루 소비 요약',
+              body: `오늘 총 ${totalExpense.toLocaleString()}원을 소비했습니다.`,
+              url: '/',
+              icon: '/icons/icon-192.png'
+            };
+          } else if (totalIncome > 0) {
+            payload = {
+              title: '🌙 오늘 하루 수입 요약',
+              body: `오늘 ${totalIncome.toLocaleString()}원 수입이 있었습니다.`,
+              url: '/',
+              icon: '/icons/icon-192.png'
+            };
           } else {
-              payload = {
-                  title: '🌙 오늘 하루는 어떠셨나요?',
-                  body: '오늘 지출 내역이 없네요. 무지출 챌린지 성공?! 잊은 내역이 없는지 확인해보세요.',
-                  url: '/',
-                  icon: '/icons/icon-192.png'
-              };
+            payload = {
+              title: '🌙 오늘 하루는 어떠셨나요?',
+              body: '오늘 기록된 내역이 없습니다.',
+              url: '/',
+              icon: '/icons/icon-192.png'
+            };
           }
         }
         else if (type === 'monthly') {
