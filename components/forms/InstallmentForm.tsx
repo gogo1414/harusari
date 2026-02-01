@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { calculateInstallment } from '@/lib/installment';
 import type { Category } from '@/types/database';
 
@@ -50,6 +50,7 @@ export default function InstallmentForm({
   });
 
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [amountString, setAmountString] = useState(
     initialData?.principal ? initialData.principal.toLocaleString() : ''
   );
@@ -82,8 +83,14 @@ export default function InstallmentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.category_id || formData.principal <= 0) return;
-    await onSubmit(formData);
+    if (!formData.category_id || formData.principal <= 0 || isSubmittingRef.current) return;
+    
+    isSubmittingRef.current = true;
+    try {
+      await onSubmit(formData);
+    } finally {
+      isSubmittingRef.current = false;
+    }
   };
 
   return (

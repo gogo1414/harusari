@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,12 +33,22 @@ export default function AddCategoryDialog({
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('money');
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const handleAdd = () => {
-    if (!newCatName) return;
-    onAdd(newCatName, newCatIcon);
-    // Reset fields after submission (or rely on parent to re-mount/reset)
-    // Here we let parent handle successful close which might reset this
+    if (!newCatName || isSubmittingRef.current) return;
+    
+    isSubmittingRef.current = true;
+    // onAdd가 비동기가 아니더라도 호출자가 처리하는 동안 중복 호출 방지
+    // 만약 onAdd가 promise를 반환하지 않는다면 이 패턴은 효과가 제한적일 수 있으나,
+    // 현재 코드 컨맥락에서 mutation을 트리거하므로 안전장치로 동작
+    try {
+        onAdd(newCatName, newCatIcon);
+    } finally {
+        setTimeout(() => {
+            isSubmittingRef.current = false;
+        }, 1000); // UI 갱신 시간을 고려해 약간의 딜레이
+    }
   };
 
   // Reset state when dialog opens (optional, but good for UX)
