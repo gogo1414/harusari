@@ -1,17 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
-import { CalendarIcon, Check, ChevronLeft, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+// import { format } from 'date-fns';
+// import { ko } from 'date-fns/locale';
+import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { calculateInstallment } from '@/lib/installment';
 import { useRouter } from 'next/navigation';
 import type { Category } from '@/types/database';
@@ -27,6 +21,8 @@ import TransactionCategorySelect from './transaction/TransactionCategorySelect';
 import TransactionMemoInput from './transaction/TransactionMemoInput';
 import TransactionInstallmentOption from './transaction/TransactionInstallmentOption';
 import TransactionRecurringOption from './transaction/TransactionRecurringOption';
+import TransactionDateInput from './transaction/TransactionDateInput';
+import TransactionSubmitButton from './transaction/TransactionSubmitButton';
 
 export interface TransactionFormData {
   type: 'income' | 'expense';
@@ -62,6 +58,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   const [memo, setMemo] = useState(initialData?.memo || '');
   const [isRecurring, setIsRecurring] = useState(initialData?.is_recurring || false);
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // 금액에서 콤마 제거 후 숫자로 변환
   const getRawAmount = () => {
@@ -157,8 +154,9 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   };
 
   const handleSubmit = async () => {
-    if (!amount || !categoryId) return;
+    if (!amount || !categoryId || isSubmittingRef.current) return;
 
+    isSubmittingRef.current = true;
     setIsLoading(true);
     try {
       await onSubmit({
@@ -181,6 +179,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
       console.error(error);
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -207,31 +206,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
 
 
         {/* 날짜 선택 */}
-        <div className="flex justify-center">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "h-auto py-2 px-4 rounded-full bg-muted/30 hover:bg-muted/50 text-foreground font-medium text-base",
-                  !date && "text-muted-foreground"
-                )}
-              >
-                {date ? format(date, "M월 d일 (EEE)", { locale: ko }) : <span>날짜 선택</span>}
-                <CalendarIcon className="ml-2 h-4 w-4 text-muted-foreground" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 rounded-2xl shadow-xl border-none" align="center">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(d) => d && setDate(d)}
-                initialFocus
-                className="rounded-2xl"
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+        <TransactionDateInput date={date} onDateChange={setDate} />
 
         {/* 금액 입력 (수입/지출 토글) */}
         <TransactionAmountInput
@@ -282,28 +257,14 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
         )}
       </div>
 
-      <div className="p-4 bg-background/80 backdrop-blur-md sticky bottom-0 z-20">
-        <Button 
-          className={cn(
-              "w-full h-14 rounded-2xl text-lg font-bold shadow-lg transition-all active:scale-[0.98]",
-              type === 'income' ? "shadow-income/20 hover:bg-income/90 bg-income" : "shadow-expense/20 hover:bg-expense/90 bg-expense"
-          )}
-          size="lg"
-          onClick={handleSubmit}
-          disabled={!amount || !categoryId || isLoading}
-        >
-          {isLoading ? (
-             <span className="flex items-center gap-2">
-                 <Loader2 className="animate-spin h-5 w-5" /> 저장 중...
-             </span>
-          ) : (
-             <span className="flex items-center gap-2">
-               <Check className="w-6 h-6" strokeWidth={3} /> 
-               {amount ? `${amount}원 ${isEditMode ? '수정' : '저장'}` : (isEditMode ? '수정하기' : '저장하기')}
-             </span>
-          )}
-        </Button>
-      </div>
+      <TransactionSubmitButton
+        type={type}
+        amount={amount}
+        isValid={!!amount && !!categoryId}
+        isLoading={isLoading}
+        isEditMode={isEditMode}
+        onSubmit={handleSubmit}
+      />
 
       {/* 카테고리 선택 다이얼로그 */}
       <CategorySelectDialog
