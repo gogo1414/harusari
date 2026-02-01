@@ -4,26 +4,27 @@ import type { Database } from '@/types/database';
 
 type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Trash2, Edit2, Loader2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+// import {
+//   Dialog,
+//   DialogContent,
+//   DialogHeader,
+//   DialogTitle,
+//   DialogFooter,
+//   DialogClose,
+// } from '@/components/ui/dialog';
+// import { Input } from '@/components/ui/input';
+// import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import type { Category } from '@/types/database';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { showToast } from '@/lib/toast';
 import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
+import CategoryFormDialog from '@/components/category/CategoryFormDialog';
 
 // dnd-kit imports
 import {
@@ -146,6 +147,7 @@ export default function CategoryManagementPage() {
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('money');
@@ -311,12 +313,19 @@ export default function CategoryManagementPage() {
   };
 
   const handleSave = async () => {
-    if (!name) return;
-
-    if (editingCategory) {
-      updateMutation.mutate({ id: editingCategory.category_id, name, icon });
-    } else {
-      addMutation.mutate({ name, icon, type });
+    if (!name || isSubmittingRef.current) return;
+    
+    isSubmittingRef.current = true;
+    try {
+        if (editingCategory) {
+          await updateMutation.mutateAsync({ id: editingCategory.category_id, name, icon });
+        } else {
+          await addMutation.mutateAsync({ name, icon, type });
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        isSubmittingRef.current = false;
     }
   };
 
@@ -390,63 +399,15 @@ export default function CategoryManagementPage() {
       )}
 
       {/* 다이얼로그 */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl font-bold">
-              {editingCategory ? '카테고리 수정' : '새 카테고리'}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="grid gap-6 py-6">
-            <div className="flex flex-col items-center gap-4">
-              <Label className="text-muted-foreground">아이콘</Label>
-              <button
-                onClick={() => setIsIconPickerOpen(true)}
-                className="transition-transform hover:scale-105 focus:outline-none"
-              >
-                <CategoryIcon 
-                  iconName={icon} 
-                  className="h-24 w-24 shadow-sm" 
-                  variant="squircle" 
-                  showBackground={true} 
-                />
-              </button>
-              
-              <IconPicker 
-                isOpen={isIconPickerOpen}
-                onClose={() => setIsIconPickerOpen(false)}
-                onSelect={(newIcon) => setIcon(newIcon)}
-                currentIcon={icon}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="name" className="text-muted-foreground">이름</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="카테고리 이름을 입력하세요"
-                className="h-12 rounded-xl text-lg font-medium"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" className="h-12 w-full rounded-xl text-base">취소</Button>
-            </DialogClose>
-            <Button 
-              onClick={handleSave} 
-              disabled={!name || isSaving}
-              className="h-12 w-full rounded-xl text-base font-semibold"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : '저장하기'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CategoryFormDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        editingCategory={editingCategory}
+        type={type}
+        onAdd={async (data) => await addMutation.mutateAsync(data)}
+        onUpdate={async (data) => await updateMutation.mutateAsync(data)}
+        isSaving={isSaving}
+      />
     </div>
   );
 }
