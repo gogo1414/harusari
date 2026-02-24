@@ -3,6 +3,7 @@ import { type Database } from '@/types/database';
 import { getCycleRange } from '@/lib/date';
 import { format } from 'date-fns';
 import { NextResponse } from 'next/server';
+import { buildCronInstallmentPayload } from '@/lib/installment-logic';
 
 type FixedTransaction = Database['public']['Tables']['fixed_transactions']['Row'];
 type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
@@ -75,7 +76,63 @@ export async function GET(request: Request) {
         continue;
       }
 
-      // 7. 거래 생성
+      // 7. 할부 거래 생성
+      if (item.is_installment === true) {
+        const cronPayload = buildCronInstallmentPayload({
+          principal: item.installment_principal || 0,
+          months: item.installment_months || 0,
+          annualRate: item.installment_rate || 0,
+          interestFreeMonths: item.installment_free_months || 0,
+          currentMonth: item.installment_current_month || 0,
+          memo: item.memo || undefined,
+        });
+
+        if (!cronPayload.shouldCreate) {
+          if (cronPayload.shouldDeactivate) {
+            await supabase
+              .from('fixed_transactions')
+              // @ts-expect-error - update 타입 불일치
+              .update({ is_active: false })
+              .eq('fixed_transaction_id', item.fixed_transaction_id);
+          }
+          continue;
+        }
+
+        const { error: installmentInsertError } = await supabase
+          .from('transactions')
+          // @ts-expect-error - Supabase insert 타입 불일치
+          .insert({
+            user_id: item.user_id,
+            amount: cronPayload.amount,
+            type: 'expense',
+            category_id: item.category_id,
+            date: targetDateStr,
+            memo: cronPayload.memo,
+            source_fixed_id: item.fixed_transaction_id,
+          } as TransactionInsert);
+
+        if (installmentInsertError) {
+          console.error(`Failed to insert installment transaction for fixed_id ${item.fixed_transaction_id}:`, installmentInsertError);
+          continue;
+        }
+
+        await supabase
+          .from('fixed_transactions')
+          // @ts-expect-error - update 타입 불일치
+          .update({
+            last_generated: targetDateStr,
+            installment_current_month: cronPayload.nextCurrentMonth,
+            amount: cronPayload.amount,
+            memo: cronPayload.memo,
+            is_active: cronPayload.shouldDeactivate ? false : item.is_active,
+          })
+          .eq('fixed_transaction_id', item.fixed_transaction_id);
+
+        processedItems.push(item.fixed_transaction_id);
+        continue;
+      }
+
+      // 8. 일반 반복 거래 생성
       const insertPayload: TransactionInsert = {
         user_id: item.user_id,
         amount: item.amount,

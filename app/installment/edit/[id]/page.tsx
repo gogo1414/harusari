@@ -8,7 +8,7 @@ import { showToast } from '@/lib/toast';
 import { Loader2 } from 'lucide-react';
 import type { Category, FixedTransaction } from '@/types/database';
 import { addMonths } from 'date-fns';
-import { calculateInstallment } from '@/lib/installment';
+import { getInstallmentAmountByCurrentMonth } from '@/lib/installment-logic';
 
 export default function EditInstallmentPage() {
   const router = useRouter();
@@ -51,12 +51,13 @@ export default function EditInstallmentPage() {
       const day = formData.date.getDate();
       const endDate = addMonths(formData.date, formData.months);
 
-      // 첫 달 납입금 재계산
-      const installmentResult = calculateInstallment({
+      const currentMonth = installmentData?.installment_current_month || 1;
+      const currentAmount = getInstallmentAmountByCurrentMonth({
         principal: formData.principal,
         months: formData.months,
         annualRate: formData.annualRate,
         interestFreeMonths: formData.interestFreeMonths,
+        currentMonth,
       });
 
       const { error } = await supabase
@@ -64,7 +65,7 @@ export default function EditInstallmentPage() {
         // @ts-expect-error - Supabase update 타입 불일치 (할부 필드)
         .update({
           day: day,
-          amount: installmentResult.monthlyPayment,
+          amount: currentAmount,
           category_id: formData.category_id,
           memo: `${formData.memo} (할부 ${installmentData?.installment_current_month || 1}/${formData.months})`,
           end_date: endDate.toISOString().split('T')[0],

@@ -7,6 +7,7 @@ import type { Category, Database } from '@/types/database';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { buildInstallmentBackfillEntries } from '@/lib/installment-logic';
 import { Loader2 } from 'lucide-react';
 import { Suspense } from 'react';
 
@@ -104,19 +105,44 @@ function NewTransactionContent() {
         if (fixedError) throw fixedError;
         sourceFixedId = (fixedData as FixedTransactionRow).fixed_transaction_id;
 
-        // 첫 달 거래 내역 저장 (할부 첫 회차)
-        // @ts-expect-error - Supabase insert 타입 불일치
-        const { error: transactionError } = await supabase.from('transactions').insert({
-          user_id: user.id,
-          amount: installmentResult.monthlyPayment, // 첫 달 납입금
-          type: 'expense',
-          category_id: data.category_id,
-          date: formattedDate,
-          memo: `${data.memo || ''} (할부 1/${data.installment_months})`.trim(),
-          source_fixed_id: sourceFixedId,
-        } as TransactionInsert);
+        // 시작월~현재월 과거분 백필 생성
+        const backfillEntries = buildInstallmentBackfillEntries({
+          startDate: data.date,
+          now: new Date(),
+          months: data.installment_months,
+          schedule: installmentResult.schedule,
+          memo: data.memo,
+        });
 
-        if (transactionError) throw transactionError;
+        for (const entry of backfillEntries) {
+          // @ts-expect-error - Supabase insert 타입 불일치
+          const { error: transactionError } = await supabase.from('transactions').insert({
+            user_id: user.id,
+            amount: entry.amount,
+            type: 'expense',
+            category_id: data.category_id,
+            date: entry.date,
+            memo: entry.memo,
+            source_fixed_id: sourceFixedId,
+          } as TransactionInsert);
+
+          if (transactionError) throw transactionError;
+        }
+
+        if (backfillEntries.length > 0) {
+          const lastEntry = backfillEntries[backfillEntries.length - 1];
+          await supabase
+            .from('fixed_transactions')
+            // @ts-expect-error - Supabase update 타입 불일치 (할부 필드)
+            .update({
+              last_generated: lastEntry.date,
+              installment_current_month: lastEntry.round,
+              amount: lastEntry.amount,
+              memo: lastEntry.memo,
+            })
+            .eq('fixed_transaction_id', sourceFixedId);
+        }
+
         return; // 할부 처리 완료
       }
 
