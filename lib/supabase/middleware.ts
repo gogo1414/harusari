@@ -30,9 +30,13 @@ export async function updateSession(request: NextRequest) {
   );
 
   // 중요: getUser를 호출하여 세션을 갱신해야 합니다.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    // 세션 조회 실패 시 하드 에러를 피하고 인증 분기로 처리
+  }
 
   // 로그인되지 않은 사용자가 보호된 라우트에 접근하면 로그인 페이지로 리다이렉트
   if (

@@ -11,12 +11,14 @@ export default function LoginPage() {
   const handleLogin = async (provider: 'google' | 'kakao') => {
     try {
       setIsLoading(true);
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
+      const origin = window.location.origin;
+      const redirectBase = siteUrl && origin.startsWith(siteUrl) ? siteUrl : origin;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: process.env.NEXT_PUBLIC_SITE_URL 
-            ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-            : `${window.location.origin}/auth/callback`,
+          redirectTo: `${redirectBase}/auth/callback`,
         },
       });
 

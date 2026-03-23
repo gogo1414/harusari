@@ -17,6 +17,6 @@ export const config = {
      * - api/push (push notification API)
      * - api/cron (cron job API)
      */
-    '/((?!_next/static|_next/image|favicon.ico|icons|auth|api/push|api/cron).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icons|auth|api/push|api/cron|manifest.json|robots.txt|sitemap.xml|sw.js).*)',
   ],
 };
