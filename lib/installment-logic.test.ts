@@ -82,6 +82,59 @@ describe('installment logic', () => {
     expect(payload).toEqual({ shouldCreate: false, shouldDeactivate: true });
   });
 
+  test('B-3: 메모가 없을 때 회차 정보만 포함된 메모를 생성한다', () => {
+    const payload = buildCronInstallmentPayload({
+      principal: 300000,
+      months: 3,
+      annualRate: 0,
+      interestFreeMonths: 3,
+      currentMonth: 1,
+      memo: undefined,
+    });
+    expect(payload.shouldCreate).toBe(true);
+    if (payload.shouldCreate) {
+      expect(payload.memo).toBe('(할부 2/3)');
+    }
+  });
+
+  test('B-4: currentMonth가 months와 같으면 비활성화 처리한다', () => {
+    const payload = buildCronInstallmentPayload({
+      principal: 300000,
+      months: 3,
+      annualRate: 0,
+      interestFreeMonths: 3,
+      currentMonth: 3, // months와 동일
+      memo: '테스트',
+    });
+    expect(payload).toEqual({ shouldCreate: false, shouldDeactivate: true });
+  });
+
+  test('D: 미래 시작 시 백필 엔트리가 생성되지 않는다', () => {
+    const schedule = [{ total: 100000 }, { total: 100000 }];
+    const entries = buildInstallmentBackfillEntries({
+      startDate: new Date(2026, 11, 1), // 2026-12-01
+      now: new Date(2026, 2, 15),       // 2026-03-15 (과거)
+      months: 2,
+      schedule,
+      memo: '미래항목',
+    });
+    expect(entries).toHaveLength(0);
+  });
+
+  test('E: 메모에 기존 할부 표시가 있으면 덮어쓴다', () => {
+    const schedule = [{ total: 50000 }, { total: 50000 }];
+    const entries = buildInstallmentBackfillEntries({
+      startDate: new Date(2026, 0, 10), // 2026-01-10
+      now: new Date(2026, 1, 15),       // 2026-02-15
+      months: 2,
+      schedule,
+      memo: '항목 (할부 1/2)',
+    });
+    // 메모에서 기존 할부 표시가 제거되고 새로 붙어야 함
+    expect(entries[0].memo).toBe('항목 (할부 1/2)');
+    expect(entries[1].memo).toBe('항목 (할부 2/2)');
+  });
+
   test('C: 수정 시 현재 회차 기준 납입금을 사용한다', () => {
     const amount = getInstallmentAmountByCurrentMonth({
       principal: 600000,

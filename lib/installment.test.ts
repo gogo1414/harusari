@@ -58,6 +58,40 @@ describe('calculateInstallment', () => {
     expect(result.schedule[3].interest).toBe(3000);
   });
 
+  test('유효하지 않은 입력 - 원금 0 이하이면 빈 결과를 반환한다', () => {
+    const result = calculateInstallment({
+      principal: 0,
+      months: 6,
+      annualRate: 12,
+      interestFreeMonths: 0,
+    });
+    expect(result.monthlyPayment).toBe(0);
+    expect(result.totalInterest).toBe(0);
+    expect(result.totalPayment).toBe(0);
+    expect(result.schedule).toHaveLength(0);
+  });
+
+  test('유효하지 않은 입력 - 개월 수 0 이하이면 빈 결과를 반환한다', () => {
+    const result = calculateInstallment({
+      principal: 100000,
+      months: 0,
+      annualRate: 12,
+      interestFreeMonths: 0,
+    });
+    expect(result.monthlyPayment).toBe(0);
+    expect(result.schedule).toHaveLength(0);
+  });
+
+  test('유효하지 않은 입력 - 음수 원금이면 빈 결과를 반환한다', () => {
+    const result = calculateInstallment({
+      principal: -5000,
+      months: 6,
+      annualRate: 12,
+      interestFreeMonths: 0,
+    });
+    expect(result.schedule).toHaveLength(0);
+  });
+
   test('원금 자투리 처리', () => {
     // 100,000원을 3개월로 나눔 -> 33,333원씩
     const result = calculateInstallment({
