@@ -89,6 +89,61 @@ describe('Calendar Component', () => {
     }
   });
 
+  describe('헤더 라벨이 사이클 그리드와 일치한다', () => {
+    // 헤더는 표시 중인 사이클의 무게 중심(중간점) 월을 따라야 한다.
+    it('cycleStartDay=25, 사이클 시작일 이전(4/10)이면 4월로 표시', () => {
+      render(
+        <Calendar
+          transactions={[]}
+          onDateSelect={mockOnDateSelect}
+          currentDate={new Date(2026, 3, 10)} // 2026-04-10, 사이클: 03/25~04/24
+          onMonthChange={mockOnMonthChange}
+          cycleStartDay={25}
+        />
+      );
+      expect(screen.getByText('2026년 4월')).toBeInTheDocument();
+    });
+
+    it('cycleStartDay=25, 사이클 시작일 당일(4/25)이면 5월로 표시', () => {
+      render(
+        <Calendar
+          transactions={[]}
+          onDateSelect={mockOnDateSelect}
+          currentDate={new Date(2026, 3, 25)} // 2026-04-25, 사이클: 04/25~05/24
+          onMonthChange={mockOnMonthChange}
+          cycleStartDay={25}
+        />
+      );
+      expect(screen.getByText('2026년 5월')).toBeInTheDocument();
+    });
+
+    it('cycleStartDay=20, 4/15(사이클 03/20~04/19)이면 4월로 표시', () => {
+      render(
+        <Calendar
+          transactions={[]}
+          onDateSelect={mockOnDateSelect}
+          currentDate={new Date(2026, 3, 15)}
+          onMonthChange={mockOnMonthChange}
+          cycleStartDay={20}
+        />
+      );
+      expect(screen.getByText('2026년 4월')).toBeInTheDocument();
+    });
+
+    it('cycleStartDay=5, 4/10(사이클 04/05~05/04)이면 4월로 표시', () => {
+      render(
+        <Calendar
+          transactions={[]}
+          onDateSelect={mockOnDateSelect}
+          currentDate={new Date(2026, 3, 10)}
+          onMonthChange={mockOnMonthChange}
+          cycleStartDay={5}
+        />
+      );
+      expect(screen.getByText('2026년 4월')).toBeInTheDocument();
+    });
+  });
+
   it('displays income and expense amounts', () => {
     // 현재 구현에서는 수입/지출을 축약 금액 텍스트로 표시
     const { container } = render(

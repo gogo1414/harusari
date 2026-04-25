@@ -60,7 +60,6 @@ export default function Calendar({
   onMonthChange,
 }: CalendarProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [pickerYear, setPickerYear] = useState(getYear(currentDate));
 
   const weekStartsOn = weekStartDay === 'sunday' ? 0 : 1;
 
@@ -96,6 +95,15 @@ export default function Calendar({
     return startOfDay(end);
   }, [currentCycleStart]);
 
+  // 헤더에 표시할 월 라벨 기준일: 사이클의 중간점이 속한 월을 사용해
+  // cycleStartDay 값에 관계없이 헤더와 그리드가 항상 일치하도록 한다.
+  const cycleLabelDate = useMemo(
+    () => new Date((currentCycleStart.getTime() + currentCycleEnd.getTime()) / 2),
+    [currentCycleStart, currentCycleEnd]
+  );
+
+  const [pickerYear, setPickerYear] = useState(getYear(cycleLabelDate));
+
   // 달력 그리드를 급여 사이클 기준으로 생성
   const calendarDays = useMemo(() => {
     const calendarStart = startOfWeek(currentCycleStart, { weekStartsOn });
@@ -126,12 +134,15 @@ export default function Calendar({
   const handleMonthSelect = (monthIndex: number) => {
     let newDate = setYear(currentDate, pickerYear);
     newDate = setMonth(newDate, monthIndex);
+    // 어떤 cycleStartDay(2~31) 값에서도 선택한 월의 사이클로 정확히 진입하도록
+    // 월 중간일(15일)을 강제 세팅한다.
+    newDate = setDate(newDate, 15);
     onMonthChange(newDate);
     setIsPickerOpen(false);
   };
 
   const togglePicker = () => {
-    setPickerYear(getYear(currentDate));
+    setPickerYear(getYear(cycleLabelDate));
     setIsPickerOpen(!isPickerOpen);
   };
 
@@ -148,11 +159,7 @@ export default function Calendar({
             onClick={togglePicker}
             className="flex items-center gap-1 text-lg font-bold text-foreground hover:bg-muted/50 px-3 py-1 rounded-full transition-colors"
           >
-            {format(
-              cycleStartDay >= 20 ? addMonths(currentDate, 1) : currentDate,
-              'yyyy년 M월',
-              { locale: ko }
-            )}
+            {format(cycleLabelDate, 'yyyy년 M월', { locale: ko })}
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isPickerOpen ? 'rotate-180' : ''}`} />
           </button>
 
@@ -186,7 +193,7 @@ export default function Calendar({
                  key={i}
                  onClick={() => handleMonthSelect(i)}
                  className={`py-3 rounded-xl text-base font-medium transition-colors ${
-                   getYear(currentDate) === pickerYear && isSameMonth(setMonth(new Date(), i), currentDate)
+                   getYear(cycleLabelDate) === pickerYear && isSameMonth(setMonth(new Date(), i), cycleLabelDate)
                      ? 'bg-primary text-primary-foreground font-bold shadow-md'
                      : 'hover:bg-muted bg-muted/30'
                  }`}
