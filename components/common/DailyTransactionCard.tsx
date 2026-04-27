@@ -128,7 +128,6 @@ export default function DailyTransactionCard({
             onEdit={onEdit}
             onDelete={onDelete}
             size="sm"
-            showActionsOnHover={true}
           />
         ))}
       </div>
