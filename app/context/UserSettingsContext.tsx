@@ -115,26 +115,51 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
     if (!userId) return;
 
+    // 급여일 변경 여부 감지 (변경 시 고정지출 재정렬 트리거)
+    const oldCycleDay = settings.salary_cycle_date;
+    const newCycleDay = newSettings.salary_cycle_date;
+    const cycleChanged = newCycleDay !== undefined && newCycleDay !== oldCycleDay;
+
     // DB 페이로드 구성
     const dbPayload: UserSettingsUpdate = {};
     if (newSettings.salary_cycle_date !== undefined) dbPayload.cycle_start_day = newSettings.salary_cycle_date;
     if (newSettings.week_start_day !== undefined) dbPayload.week_start = newSettings.week_start_day === 1 ? 'monday' : 'sunday';
-    
+
     dbPayload.updated_at = new Date().toISOString();
 
     const { error } = await supabase
       .from('user_settings')
       // @ts-expect-error - upsert type inference mismatch
-      .upsert({ 
-          user_id: userId, 
-          ...dbPayload 
+      .upsert({
+          user_id: userId,
+          ...dbPayload
       }, { onConflict: 'user_id' });
 
     if (error) {
         console.error('Settings update error:', error);
         throw error;
     }
-    
+
+    // 급여일이 바뀌면 현재 사이클 고정지출을 새 사이클 기준으로 재정렬
+    // (사이클 창 이동으로 인한 고정지출 누락/중복 방지)
+    if (cycleChanged) {
+      try {
+        const res = await fetch('/api/recurring/reconcile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldCycleDay, newCycleDay }),
+        });
+        if (!res.ok) {
+          console.error('Recurring reconcile failed:', await res.text());
+        }
+      } catch (reconcileError) {
+        // 재정렬 실패는 설정 저장 자체를 막지 않음 (다음 cron이 보정)
+        console.error('Recurring reconcile request error:', reconcileError);
+      }
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
+    }
+
     queryClient.invalidateQueries({ queryKey: ['user_settings'] });
   };
 

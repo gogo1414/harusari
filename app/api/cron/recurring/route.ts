@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { type Database } from '@/types/database';
-import { getCycleRange } from '@/lib/date';
+import { getCycleRange, calculateTargetDateInCycle } from '@/lib/date';
 import { format } from 'date-fns';
 import { NextResponse } from 'next/server';
 import { buildCronInstallmentPayload } from '@/lib/installment-logic';
@@ -175,62 +175,4 @@ export async function GET(request: Request) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
-}
-
-/**
- * 현재 사이클 내에서 고정지출 날짜(day)에 해당하는 실제 날짜 계산
- * @param day 고정지출 설정 날짜 (1~31)
- * @param cycleStart 사이클 시작일
- * @param cycleEnd 사이클 종료일
- * @param cycleDay 급여일 (사이클 시작일)
- * @returns YYYY-MM-DD 형식의 날짜 문자열
- */
-function calculateTargetDateInCycle(
-  day: number,
-  cycleStart: Date,
-  cycleEnd: Date,
-  cycleDay: number
-): string | null {
-  // 사이클이 월을 걸치는 경우를 처리
-  // 예: 급여일 25일 -> 사이클 1/25 ~ 2/24
-  
-  // 사이클 시작월에서 해당 day가 포함되는지 확인
-  const startYear = cycleStart.getFullYear();
-  const startMonth = cycleStart.getMonth();
-  
-  // 사이클 종료월
-  const endYear = cycleEnd.getFullYear();
-  const endMonth = cycleEnd.getMonth();
-  
-  // Case 1: day가 cycleDay 이상인 경우 -> 사이클 시작월에 해당
-  // Case 2: day가 cycleDay 미만인 경우 -> 사이클 종료월에 해당
-  
-  let targetYear: number;
-  let targetMonth: number;
-  
-  if (day >= cycleDay) {
-    // 사이클 시작월에 해당
-    targetYear = startYear;
-    targetMonth = startMonth;
-  } else {
-    // 사이클 종료월에 해당
-    targetYear = endYear;
-    targetMonth = endMonth;
-  }
-  
-  // 해당 월의 일수 확인 (말일 조정)
-  const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-  const targetDay = Math.min(day, daysInMonth);
-  
-  const targetDateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
-  
-  // 계산된 날짜가 사이클 범위 내인지 최종 확인
-  const cycleStartStr = format(cycleStart, 'yyyy-MM-dd');
-  const cycleEndStr = format(cycleEnd, 'yyyy-MM-dd');
-  
-  if (targetDateStr >= cycleStartStr && targetDateStr <= cycleEndStr) {
-    return targetDateStr;
-  }
-  
-  return null;
 }
