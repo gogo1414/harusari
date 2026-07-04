@@ -131,6 +131,12 @@ export default function EditInstallmentPage() {
     <InstallmentForm
       categories={categories}
       onSubmit={async (data) => {
+        // 이미 진행된 회차보다 개월 수를 줄이면 납부 이력과 어긋나므로 차단
+        const currentMonth = installmentData.installment_current_month || 1;
+        if (data.months < currentMonth) {
+          showToast.error(`이미 ${currentMonth}회차까지 진행되어 할부 개월 수를 ${currentMonth}개월 미만으로 줄일 수 없습니다`);
+          return;
+        }
         await updateMutation.mutateAsync(data);
       }}
       onCancel={() => router.back()}

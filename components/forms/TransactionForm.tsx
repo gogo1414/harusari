@@ -7,6 +7,8 @@ import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { calculateInstallment } from '@/lib/installment';
+import { validateAmount, validateInstallment } from '@/lib/validation';
+import { showToast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
 import type { Category } from '@/types/database';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -154,7 +156,23 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   };
 
   const handleSubmit = async () => {
-    if (!amount || !categoryId || isSubmittingRef.current) return;
+    if (!categoryId || isSubmittingRef.current) return;
+
+    // 금액 검증: 0원/음수/상한 초과 차단 ("0"은 truthy 문자열이라 !!amount로는 못 막음)
+    const rawAmount = getRawAmount();
+    const amountError = validateAmount(rawAmount);
+    if (amountError) {
+      showToast.error(amountError);
+      return;
+    }
+    // 할부 극소액(원금 < 개월수) 방어: 0원 회차로 cron이 매일 실패하는 것을 등록 단계에서 차단
+    if (paymentType === 'installment') {
+      const installmentError = validateInstallment(rawAmount, installmentMonths);
+      if (installmentError) {
+        showToast.error(installmentError);
+        return;
+      }
+    }
 
     isSubmittingRef.current = true;
     setIsLoading(true);
@@ -204,6 +222,12 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
 
       <div className="flex-1 px-5 py-2 space-y-8">
 
+        {/* 고정 내역 수정 안내: 이번 사이클에 이미 생성된 거래는 소급 변경되지 않음 */}
+        {isEditMode && isRecurringFixed && (
+          <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
+            이미 기록된 이번 사이클 내역은 이 수정으로 바뀌지 않으며, 다음 생성분부터 반영됩니다.
+          </div>
+        )}
 
         {/* 날짜 선택 */}
         <TransactionDateInput date={date} onDateChange={setDate} />
@@ -262,7 +286,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
       <TransactionSubmitButton
         type={type}
         amount={amount}
-        isValid={!!amount && !!categoryId}
+        isValid={getRawAmount() > 0 && !!categoryId}
         isLoading={isLoading}
         isEditMode={isEditMode}
         onSubmit={handleSubmit}

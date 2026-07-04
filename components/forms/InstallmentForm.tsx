@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useRef } from 'react';
 import { calculateInstallment } from '@/lib/installment';
+import { validateAmount, validateInstallment } from '@/lib/validation';
+import { showToast } from '@/lib/toast';
 import type { Category } from '@/types/database';
 
 import InstallmentHeader from './installment/InstallmentHeader';
@@ -83,8 +85,20 @@ export default function InstallmentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.category_id || formData.principal <= 0 || isSubmittingRef.current) return;
-    
+    if (!formData.category_id || isSubmittingRef.current) return;
+
+    // 금액/할부 검증: 0원·상한 초과·극소액(원금 < 개월수) 차단
+    const amountError = validateAmount(formData.principal);
+    if (amountError) {
+      showToast.error(amountError);
+      return;
+    }
+    const installmentError = validateInstallment(formData.principal, formData.months);
+    if (installmentError) {
+      showToast.error(installmentError);
+      return;
+    }
+
     isSubmittingRef.current = true;
     try {
       await onSubmit(formData);
@@ -98,7 +112,13 @@ export default function InstallmentForm({
       <InstallmentHeader isEditMode={isEditMode} onCancel={onCancel} />
 
       <div className="flex-1 overflow-y-auto p-5 pb-32 space-y-8">
-        <InstallmentAmountInput 
+        {isEditMode && (
+          <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
+            이미 기록된 이번 사이클 납부 내역은 이 수정으로 바뀌지 않으며, 다음 회차부터 반영됩니다.
+          </div>
+        )}
+
+        <InstallmentAmountInput
           amountString={amountString} 
           onChange={handleAmountChange} 
         />
