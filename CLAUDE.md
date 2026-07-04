@@ -48,9 +48,9 @@ Supabase Auth → Middleware (세션 검증) → UserSettingsContext (전역 상
 ```
 
 ### 디렉토리 구조
-- `app/components/`: 프로젝트 전용 컴포넌트 (Calendar, TransactionForm, BottomSheet 등)
+- `components/`: 프로젝트 전용 컴포넌트 (calendar, forms, dashboard, common 등 하위 폴더로 구성)
 - `app/context/`: React Context (UserSettingsContext - 설정 및 카테고리 전역 관리)
-- `app/api/cron/`: Vercel Cron 작업 (고정 지출/수입 자동 생성)
+- `app/api/cron/`: cron 진입 라우트. 실제 스케줄링은 GitHub Actions(`.github/workflows/cron_scheduler.yml`)가 담당하며 UTC 시간대별로 이 라우트를 호출 (고정 지출/수입 자동 생성, 푸시 알림). `vercel.json`은 미사용
 - `components/ui/`: Shadcn/ui 컴포넌트 (수정 시 주의)
 - `lib/supabase/`: Supabase 클라이언트 (client.ts: 브라우저용, server.ts: 서버 컴포넌트용, middleware.ts: 인증 처리)
 - `types/database.ts`: Supabase 테이블 타입 정의
@@ -118,6 +118,6 @@ npx supabase gen types typescript
 
 ## 테스트 구조
 
-- 단위 테스트: `app/components/*.test.tsx` (Jest + RTL)
+- 단위 테스트: `components/**/*.test.tsx`, `__tests__/*.test.tsx`, `lib/*.test.ts` (Jest + RTL)
 - E2E 테스트: `tests/*.spec.ts` (Playwright)
 - Playwright는 Mobile Chrome, Mobile Safari, Desktop Chrome에서 실행

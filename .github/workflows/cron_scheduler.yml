@@ -35,7 +35,7 @@ jobs:
           # 1. 고정지출 생성 (15:00~16:59 UTC = 00:00~01:59 KST)
           if [ "$CURRENT_HOUR" -ge 15 ] && [ "$CURRENT_HOUR" -lt 17 ]; then
             echo "Triggering Recurring Transactions..."
-            curl -s -X GET "$BASE_URL/api/cron/recurring" \
+            curl -fsS -X GET "$BASE_URL/api/cron/recurring" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
@@ -43,7 +43,7 @@ jobs:
           # 2. 아침 알림 (00:00~01:59 UTC = 09:00~10:59 KST)
           if [ "$CURRENT_HOUR" -ge 0 ] && [ "$CURRENT_HOUR" -lt 2 ]; then
             echo "Triggering Morning Push..."
-            curl -s -X GET "$BASE_URL/api/push/send?type=morning" \
+            curl -fsS -X GET "$BASE_URL/api/push/send?type=morning" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
@@ -51,7 +51,7 @@ jobs:
           # 3. 월간 분석 (01:00~02:59 UTC, 1일 = 10:00~11:59 KST)
           if [ "$CURRENT_HOUR" -ge 1 ] && [ "$CURRENT_HOUR" -lt 3 ] && [ "$CURRENT_DAY" -eq 1 ]; then
             echo "Triggering Monthly Analysis Push..."
-            curl -s -X GET "$BASE_URL/api/push/send?type=monthly" \
+            curl -fsS -X GET "$BASE_URL/api/push/send?type=monthly" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
@@ -59,7 +59,7 @@ jobs:
           # 4. 저녁 알림 (12:00~13:59 UTC = 21:00~22:59 KST)
           if [ "$CURRENT_HOUR" -ge 12 ] && [ "$CURRENT_HOUR" -lt 14 ]; then
             echo "Triggering Evening Push..."
-            curl -s -X GET "$BASE_URL/api/push/send?type=evening" \
+            curl -fsS -X GET "$BASE_URL/api/push/send?type=evening" \
               -H "$AUTH_HEADER" \
               -H "Content-Type: application/json"
           fi
