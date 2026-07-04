@@ -1,6 +1,30 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+// 알려진 웹푸시 서비스 도메인만 허용 (내부망 URL 저장으로 인한 SSRF 방지)
+const ALLOWED_PUSH_HOSTS = [
+  'fcm.googleapis.com',
+  'updates.push.services.mozilla.com',
+  'push.apple.com',
+  'web.push.apple.com',
+  'notify.windows.com',
+];
+
+function isValidPushSubscription(subscription: unknown): subscription is { endpoint: string } {
+  if (!subscription || typeof subscription !== 'object') return false;
+  const endpoint = (subscription as { endpoint?: unknown }).endpoint;
+  if (typeof endpoint !== 'string') return false;
+  try {
+    const url = new URL(endpoint);
+    if (url.protocol !== 'https:') return false;
+    return ALLOWED_PUSH_HOSTS.some(
+      (host) => url.hostname === host || url.hostname.endsWith(`.${host}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -12,8 +36,8 @@ export async function POST(request: Request) {
 
     const { subscription } = await request.json();
 
-    if (!subscription) {
-      return NextResponse.json({ error: 'Missing subscription' }, { status: 400 });
+    if (!isValidPushSubscription(subscription)) {
+      return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 });
     }
 
     const { error } = await supabase

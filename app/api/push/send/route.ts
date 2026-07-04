@@ -57,9 +57,13 @@ export async function GET(request: Request) {
         return NextResponse.json({ message: 'No valid push type determined from time' });
     }
     
-    // 보안 체크 (Vercel Cron 사용 시 CRON_SECRET 필요)
+    // 보안 체크: fail-closed. CRON_SECRET 미설정 시 발송 라우트가 무인증 개방되던 문제 수정.
+    if (!process.env.CRON_SECRET) {
+      console.error('CRON_SECRET is not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
     const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -240,7 +244,16 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, results });
+    // 응답에 user_id(UUID)를 노출하지 않도록 집계만 반환
+    const summary = results.reduce(
+      (acc, r) => {
+        acc[r.status] += 1;
+        return acc;
+      },
+      { sent: 0, removed: 0, error: 0 } as Record<PushSendResult['status'], number>
+    );
+
+    return NextResponse.json({ success: true, type, ...summary });
   } catch (error: unknown) {
     console.error('Push Cron Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
