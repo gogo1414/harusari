@@ -9,16 +9,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUserSettings } from '@/app/context/UserSettingsContext';
+import { showToast } from '@/lib/toast';
 
 export default function BasicSettingSection() {
   const { settings, updateSettings } = useUserSettings();
 
-  const handleCycleChange = (value: string) => {
-    updateSettings({ salary_cycle_date: parseInt(value) });
+  const handleCycleChange = async (value: string) => {
+    try {
+      await updateSettings({ salary_cycle_date: parseInt(value) });
+      showToast.success('설정이 저장되었습니다');
+    } catch {
+      showToast.error('설정 저장에 실패했습니다');
+    }
   };
 
-  const handleWeekStartChange = (value: string) => {
-    updateSettings({ week_start_day: value === '1' ? 1 : 0 });
+  const handleWeekStartChange = async (value: string) => {
+    try {
+      await updateSettings({ week_start_day: value === '1' ? 1 : 0 });
+      showToast.success('설정이 저장되었습니다');
+    } catch {
+      showToast.error('설정 저장에 실패했습니다');
+    }
   };
 
   return (

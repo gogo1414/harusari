@@ -2,11 +2,20 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { showToast } from '@/lib/toast';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
+
+  // OAuth 콜백이 /login?error=auth 로 돌아온 경우 사용자에게 표시 (기존엔 무표시)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'auth') {
+      showToast.error('로그인에 실패했습니다. 다시 시도해 주세요.');
+    }
+  }, []);
 
   const handleLogin = async (provider: 'google' | 'kakao') => {
     try {
@@ -25,7 +34,7 @@ export default function LoginPage() {
       if (error) throw error;
     } catch (error) {
       console.error('Login error:', error);
-      alert('로그인 중 오류가 발생했습니다.');
+      showToast.error('로그인 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }

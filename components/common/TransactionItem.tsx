@@ -39,8 +39,9 @@ export default function TransactionItem({
   const iconSize = size === 'sm' ? 'h-9 w-9' : 'h-10 w-10 sm:h-11 sm:w-11';
   const textSize = size === 'sm' ? 'text-sm' : 'text-[15px] sm:text-[16px]';
   const amountSize = size === 'sm' ? 'text-sm' : 'text-[15px] sm:text-[16px]';
-  const buttonSize = size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
-  const iconButtonSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+  // 터치 기기 44px 터치 타겟 확보. 데스크톱(hover 가능)에서는 좀 더 컴팩트하게.
+  const buttonSize = size === 'sm' ? 'h-10 w-10 sm:h-8 sm:w-8' : 'h-11 w-11 sm:h-9 sm:w-9';
+  const iconButtonSize = size === 'sm' ? 'h-4 w-4' : 'h-[18px] w-[18px]';
 
   return (
     <div className={cn('flex items-center gap-3 sm:gap-4 py-3 group', size === 'sm' && 'py-2')}>
@@ -77,7 +78,9 @@ export default function TransactionItem({
       <div
         className={cn(
           'flex items-center gap-0.5 sm:gap-1 pl-1',
-          showActionsOnHover && 'opacity-0 group-hover:opacity-100 transition-opacity'
+          // hover 가능한 기기(데스크톱)에서만 hover로 숨김. 터치 기기에서는 항상 표시.
+          showActionsOnHover &&
+            'transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100'
         )}
       >
         <Button
@@ -86,7 +89,7 @@ export default function TransactionItem({
           onClick={() => onEdit(transaction.transaction_id)}
           className={cn(
             buttonSize,
-            'text-muted-foreground/40 hover:text-primary hover:bg-primary/10 active:opacity-70 transition-colors'
+            'text-muted-foreground/60 hover:text-primary hover:bg-primary/10 active:opacity-70 transition-colors'
           )}
           aria-label="수정"
         >
@@ -98,7 +101,7 @@ export default function TransactionItem({
           onClick={() => onDelete(transaction.transaction_id)}
           className={cn(
             buttonSize,
-            'text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 active:opacity-70 transition-colors'
+            'text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 active:opacity-70 transition-colors'
           )}
           aria-label="삭제"
         >

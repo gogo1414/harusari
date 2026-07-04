@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
 import { showToast } from '@/lib/toast';
 import { Loader2 } from 'lucide-react';
+import QueryErrorState from '@/components/common/QueryErrorState';
 import type { Category, Transaction } from '@/types/database';
 
 export default function EditTransactionPage() {
@@ -27,7 +28,7 @@ export default function EditTransactionPage() {
   });
 
   // 거래 내역 조회
-  const { data: transaction, isLoading } = useQuery({
+  const { data: transaction, isLoading, isError, refetch } = useQuery({
     queryKey: ['transaction', id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -68,6 +69,10 @@ export default function EditTransactionPage() {
       showToast.error('수정에 실패했습니다');
     }
   });
+
+  if (isError) {
+    return <QueryErrorState fullHeight onRetry={() => refetch()} />;
+  }
 
   if (isLoading || !transaction) {
     return (

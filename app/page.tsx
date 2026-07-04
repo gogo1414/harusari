@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameDay } from 'date-fns';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import type { Transaction } from '@/types/database';
 import FAB from '@/components/common/FAB';
 import { createClient } from '@/lib/supabase/client';
@@ -14,6 +14,7 @@ import HomeHeader from '@/components/dashboard/HomeHeader';
 import HomeCalendarSection from '@/components/dashboard/HomeCalendarSection';
 import HomeTransactionList from '@/components/dashboard/HomeTransactionList';
 import HomeDeleteDialog from '@/components/dashboard/HomeDeleteDialog';
+import QueryErrorState from '@/components/common/QueryErrorState';
 
 export default function HomePage() {
   const supabase = createClient();
@@ -29,7 +30,7 @@ export default function HomePage() {
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
   // 거래 내역 데이터 조회 (달력 표시를 위해 전후 1달 여유 있게 조회)
-  const { data: transactions = [], isLoading } = useQuery({
+  const { data: transactions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['transactions', format(currentMonth, 'yyyy-MM')],
     queryFn: async () => {
       // 달력은 급여일 설정에 따라 이전/다음 달 날짜도 보여주므로 범위를 넉넉하게 잡음 (전후 2개월)
@@ -46,6 +47,8 @@ export default function HomePage() {
       if (error) throw error;
       return data as Transaction[];
     },
+    // 월 이동 시 스켈레톤 깜빡임 방지 (이전 데이터 유지)
+    placeholderData: keepPreviousData,
   });
 
   // 1. 사이클 범위 계산 및 데이터 필터링
@@ -168,6 +171,10 @@ export default function HomePage() {
         onLogout={handleLogout}
       />
 
+      {isError ? (
+        <QueryErrorState onRetry={() => refetch()} />
+      ) : (
+      <>
       <HomeCalendarSection
         isLoading={isLoading}
         transactions={transactions}
@@ -193,6 +200,8 @@ export default function HomePage() {
         onDeleteRequest={handleDeleteRequest}
         onEdit={handleEdit}
       />
+      </>
+      )}
 
       <HomeDeleteDialog
         open={deleteDialogOpen}
