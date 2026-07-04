@@ -47,7 +47,7 @@ export default function HomeHeader({ isMenuOpen, setIsMenuOpen, onLogout }: Home
                       <>
                         <motion.div custom={0} variants={menuItemVariants} initial="hidden" animate="visible">
                           <Link href="/categories" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/categories' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
-                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/categories' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/categories' ? 'bg-primary/10 ring-primary/30' : 'bg-white dark:bg-muted ring-black/5 group-hover:ring-primary/20'}`}>
                                <List className={`h-6 w-6 ${pathname === '/categories' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
                             </div>
                             <span className={`font-bold text-lg ${pathname === '/categories' ? 'text-primary' : 'text-foreground/90'}`}>카테고리 관리</span>
@@ -56,7 +56,7 @@ export default function HomeHeader({ isMenuOpen, setIsMenuOpen, onLogout }: Home
 
                         <motion.div custom={1} variants={menuItemVariants} initial="hidden" animate="visible">
                           <Link href="/recurring" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/recurring' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
-                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/recurring' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/recurring' ? 'bg-primary/10 ring-primary/30' : 'bg-white dark:bg-muted ring-black/5 group-hover:ring-primary/20'}`}>
                                <Repeat className={`h-6 w-6 ${pathname === '/recurring' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
                             </div>
                             <span className={`font-bold text-lg ${pathname === '/recurring' ? 'text-primary' : 'text-foreground/90'}`}>고정 지출/수입</span>
@@ -65,7 +65,7 @@ export default function HomeHeader({ isMenuOpen, setIsMenuOpen, onLogout }: Home
 
                         <motion.div custom={2} variants={menuItemVariants} initial="hidden" animate="visible">
                           <Link href="/stats" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/stats' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
-                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/stats' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/stats' ? 'bg-primary/10 ring-primary/30' : 'bg-white dark:bg-muted ring-black/5 group-hover:ring-primary/20'}`}>
                                <BarChart3 className={`h-6 w-6 ${pathname === '/stats' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
                             </div>
                             <span className={`font-bold text-lg ${pathname === '/stats' ? 'text-primary' : 'text-foreground/90'}`}>지출 분석</span>
@@ -74,7 +74,7 @@ export default function HomeHeader({ isMenuOpen, setIsMenuOpen, onLogout }: Home
 
                         <motion.div custom={3} variants={menuItemVariants} initial="hidden" animate="visible">
                           <Link href="/budget-settings" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/budget-settings' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
-                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/budget-settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/budget-settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white dark:bg-muted ring-black/5 group-hover:ring-primary/20'}`}>
                                <Wallet className={`h-6 w-6 ${pathname === '/budget-settings' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
                             </div>
                             <span className={`font-bold text-lg ${pathname === '/budget-settings' ? 'text-primary' : 'text-foreground/90'}`}>월 목표 예산 설정</span>
@@ -83,7 +83,7 @@ export default function HomeHeader({ isMenuOpen, setIsMenuOpen, onLogout }: Home
 
                         <motion.div custom={4} variants={menuItemVariants} initial="hidden" animate="visible">
                           <Link href="/settings" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-4 rounded-2xl p-4 transition-all group active:scale-95 ${pathname === '/settings' ? 'bg-primary/10' : 'hover:bg-muted/80'}`}>
-                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white ring-black/5 group-hover:ring-primary/20'}`}>
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ring-1 transition-all ${pathname === '/settings' ? 'bg-primary/10 ring-primary/30' : 'bg-white dark:bg-muted ring-black/5 group-hover:ring-primary/20'}`}>
                                <Settings className={`h-6 w-6 ${pathname === '/settings' ? 'text-primary' : 'text-muted-foreground group-hover:text-primary'}`} aria-hidden="true" />
                             </div>
                             <span className={`font-bold text-lg ${pathname === '/settings' ? 'text-primary' : 'text-foreground/90'}`}>환경 설정</span>

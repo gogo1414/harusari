@@ -9,7 +9,7 @@ import ThemeSettingSection from '@/components/settings/ThemeSettingSection';
 import BasicSettingSection from '@/components/settings/BasicSettingSection';
 
 import AccountSettingSection from '@/components/settings/AccountSettingSection';
-import { useUserSettings } from '@/hooks/useUserSettings';
+import { useUserSettings } from '@/app/context/UserSettingsContext';
 
 export default function SettingsPage() {
   const router = useRouter();

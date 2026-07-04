@@ -44,11 +44,6 @@ export default function HomeCalendarSection({
   cycleStartDay,
   weekStartDay,
 }: HomeCalendarSectionProps) {
-    const handleTypeClick = () => {
-        // Placeholder for future type filtering
-        console.log("Type filter clicked"); 
-    };
-
     const cycleRange = getCycleRange(currentDate, cycleStartDay);
     // 사이클 중간점 기준으로 라벨 월을 계산해 Calendar 헤더와 일관되게 표시
     const cycleLabelDate = new Date((cycleRange.start.getTime() + cycleRange.end.getTime()) / 2);
@@ -107,7 +102,7 @@ export default function HomeCalendarSection({
           <SummaryCardSkeleton />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <SummaryCard type="income" onClick={handleTypeClick}>
+            <SummaryCard type="income" interactive={false}>
               <SummaryCard.Badge type="income">↘</SummaryCard.Badge>
               <SummaryCard.Label>수입</SummaryCard.Label>
               <SummaryCard.Amount type="income" prefix="+">
@@ -115,7 +110,7 @@ export default function HomeCalendarSection({
               </SummaryCard.Amount>
             </SummaryCard>
 
-            <SummaryCard type="expense" onClick={handleTypeClick}>
+            <SummaryCard type="expense" interactive={false}>
               <SummaryCard.Badge type="expense">↗</SummaryCard.Badge>
               <SummaryCard.Label>지출</SummaryCard.Label>
               <SummaryCard.Amount type="expense" prefix="-">

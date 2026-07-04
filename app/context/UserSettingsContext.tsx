@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Database } from '@/types/database';
@@ -111,8 +111,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   }, [userId, categories.length, isCategoriesLoading, supabase, queryClient]);
 
 
-  // 설정 업데이트 함수
-  const updateSettings = async (newSettings: Partial<UserSettings>) => {
+  // 설정 업데이트 함수 (매 렌더 재생성 방지 위해 useCallback)
+  const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
     if (!userId) return;
 
     // 급여일 변경 여부 감지 (변경 시 고정지출 재정렬 트리거)
@@ -161,15 +161,21 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     }
 
     queryClient.invalidateQueries({ queryKey: ['user_settings'] });
-  };
+  }, [userId, settings.salary_cycle_date, supabase, queryClient]);
+
+  // Provider value 메모이제이션: 루트 Provider라 참조가 매번 바뀌면 전 소비자가 연쇄 리렌더된다.
+  const contextValue = useMemo(
+    () => ({
+      settings,
+      categories,
+      updateSettings,
+      isLoading: isSettingsLoading || isCategoriesLoading,
+    }),
+    [settings, categories, updateSettings, isSettingsLoading, isCategoriesLoading]
+  );
 
   return (
-    <UserSettingsContext.Provider value={{ 
-      settings, 
-      categories, 
-      updateSettings, 
-      isLoading: isSettingsLoading || isCategoriesLoading 
-    }}>
+    <UserSettingsContext.Provider value={contextValue}>
       {children}
     </UserSettingsContext.Provider>
   );

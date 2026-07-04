@@ -20,8 +20,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // 핀치 줌 차단은 WCAG 1.4.4 위반 → maximumScale/userScalable 제한 제거
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#3182F6' },
     { media: '(prefers-color-scheme: dark)', color: '#1e3a5f' },
