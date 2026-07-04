@@ -59,3 +59,6 @@ storybook-static
 
 # next-pwa fallback worker (generated)
 public/fallback-*.js
+
+# Pencil 디자인 파일 (암호화 바이너리, 추적 제외)
+harusari.pen
