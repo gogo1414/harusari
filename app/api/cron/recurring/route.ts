@@ -10,7 +10,11 @@ type TransactionInsert = Database['public']['Tables']['transactions']['Insert'];
 type UserSettings = Database['public']['Tables']['user_settings']['Row'];
 
 export async function GET(request: Request) {
-  // 보안 체크: Vercel Cron 헤더 확인
+  // 보안 체크: CRON_SECRET 미설정 시 "Bearer undefined" 통과를 막기 위해 fail-closed
+  if (!process.env.CRON_SECRET) {
+    console.error('CRON_SECRET is not configured');
+    return new NextResponse('Server misconfigured', { status: 500 });
+  }
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new NextResponse('Unauthorized', { status: 401 });
@@ -61,18 +65,20 @@ export async function GET(request: Request) {
         }
       }
 
-      // 5. 종료일 확인
-      if (item.end_type === 'date' && item.end_date) {
-        const endDateStr = item.end_date;
-        // 종료일이 현재 사이클 시작일보다 이전이면 생성하지 않음
-        if (endDateStr < cycleStartStr) continue;
-      }
-
       // 6. 대상 날짜 계산 (현재 사이클 내에서 item.day에 해당하는 날짜)
       const targetDateStr = calculateTargetDateInCycle(item.day, cycleStart, cycleEnd, cycleDay);
-      
+
       if (!targetDateStr) {
-        // 현재 사이클에 해당하는 날짜가 없음 (예외 상황)
+        // 현재 사이클에 해당하는 날짜가 없음 (예외 상황) — 재발 감지를 위해 로깅
+        console.warn(
+          `[cron/recurring] calculateTargetDateInCycle returned null: fixed_id=${item.fixed_transaction_id}, day=${item.day}, cycle=${cycleStartStr}~${cycleEndStr}`
+        );
+        continue;
+      }
+
+      // 5. 종료일 확인: 종료일이 실제 생성 대상 날짜보다 이전이면 생성하지 않음
+      // (사이클 시작일 기준만 보면 종료일 이후에도 생성되던 버그 수정)
+      if (item.end_type === 'date' && item.end_date && item.end_date < targetDateStr) {
         continue;
       }
 
@@ -111,7 +117,8 @@ export async function GET(request: Request) {
             source_fixed_id: item.fixed_transaction_id,
           } as TransactionInsert);
 
-        if (installmentInsertError) {
+        // 23505(unique_violation)은 이미 생성된 것이므로 실패로 보지 않고 last_generated 갱신으로 진행
+        if (installmentInsertError && installmentInsertError.code !== '23505') {
           console.error(`Failed to insert installment transaction for fixed_id ${item.fixed_transaction_id}:`, installmentInsertError);
           continue;
         }
@@ -148,18 +155,24 @@ export async function GET(request: Request) {
         // @ts-expect-error - Supabase insert 타입 불일치
         .insert(insertPayload);
 
-      if (insertError) {
+      // 23505(unique_violation)은 이미 생성된 것이므로 skip하지 않고 last_generated 갱신으로 진행
+      // (update만 실패해 다음 날 재생성되던 3-2 문제도 UNIQUE 제약으로 최종 방어)
+      if (insertError && insertError.code !== '23505') {
         console.error(`Failed to insert transaction for fixed_id ${item.fixed_transaction_id}:`, insertError);
         continue;
       }
 
       // 8. last_generated 업데이트
-      await supabase
+      const { error: updateError } = await supabase
         .from('fixed_transactions')
         // @ts-expect-error - last_generated 타입 불일치
         .update({ last_generated: targetDateStr })
         .eq('fixed_transaction_id', item.fixed_transaction_id);
-        
+
+      if (updateError) {
+        console.error(`Failed to update last_generated for fixed_id ${item.fixed_transaction_id}:`, updateError);
+      }
+
       processedItems.push(item.fixed_transaction_id);
     }
 
