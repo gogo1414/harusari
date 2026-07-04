@@ -47,10 +47,6 @@ export default function StatsPage() {
   const currentCycle = getCycleRange(currentDate, cycleStartDay);
   const lastCycle = getCycleRange(subMonths(currentCycle.start, 1), cycleStartDay);
 
-  // 통합 트랜잭션 데이터 조회
-  const fetchStart = format(subMonths(lastCycle.start, 1), 'yyyy-MM-dd');
-  const fetchEnd = format(addMonths(currentCycle.end, 1), 'yyyy-MM-dd');
-
   const handleMonthChange = (delta: number) => {
     const newBaseDate = addMonths(currentCycle.start, delta);
     setCurrentDate(newBaseDate);
@@ -66,26 +62,8 @@ export default function StatsPage() {
     },
   });
 
-  const { data: transactions = [], isLoading: isTransLoading } = useQuery({
-    queryKey: ['transactions', 'stats', fetchStart, fetchEnd],
-    queryFn: async () => {
-      const { data, error: userError } = await supabase.auth.getUser();
-      if (userError || !data.user) throw new Error('Not authenticated');
-
-      const { data: trans, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', data.user.id)
-        .gte('date', fetchStart)
-        .lte('date', fetchEnd)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      return trans as Transaction[];
-    },
-  });
-
   // 월별 추이 데이터 조회
+  // (trend 범위가 현재/지난 사이클을 모두 포함하므로 별도의 stats 쿼리 없이 trendData를 재사용해 이중 페칭 제거)
   const trendStart = format(subMonths(currentDate, 8), 'yyyy-MM-dd');
   const trendEnd = format(addMonths(currentDate, 2), 'yyyy-MM-dd');
   
@@ -108,7 +86,7 @@ export default function StatsPage() {
     },
   });
 
-  const isLoading = isTransLoading || isTrendLoading;
+  const isLoading = isTrendLoading;
 
   // 저축 판별용 카테고리 맵
   const categoryMap = buildCategoryMap(categories);
@@ -139,8 +117,8 @@ export default function StatsPage() {
     return { incomeByCat, expenseByCat, savingsByCat, totalIncome, totalExpense, totalSavings };
   };
 
-  const currentMonthTrans = filterByDateRange(transactions, currentCycle.start, currentCycle.end);
-  const lastMonthTrans = filterByDateRange(transactions, lastCycle.start, lastCycle.end);
+  const currentMonthTrans = filterByDateRange(trendData, currentCycle.start, currentCycle.end);
+  const lastMonthTrans = filterByDateRange(trendData, lastCycle.start, lastCycle.end);
 
   // 예산 분석 데이터 계산
   const budgetAnalysis: BudgetAnalysisItem[] = budgetGoals
