@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NotificationSettingSection from '@/components/settings/NotificationSettingSection';
@@ -12,7 +12,7 @@ import AccountSettingSection from '@/components/settings/AccountSettingSection';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const goBack = useBackOrHome();
   const [mounted, setMounted] = useState(false);
   const { isLoading } = useUserSettings();
 
@@ -32,7 +32,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-dvh bg-background p-4 pb-20 font-sans">
       <div className="mb-6 flex items-center gap-2 sticky top-0 bg-background/80 backdrop-blur-md z-10 py-2 -mx-4 px-4 border-b border-black/5 dark:border-white/5">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10">
+        <Button variant="ghost" size="icon" onClick={goBack} aria-label="뒤로 가기" className="-ml-2 rounded-full h-10 w-10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <h1 className="text-xl font-extrabold tracking-tight">환경 설정</h1>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { ChevronLeft, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBudgetGoals } from '@/hooks/useBudgetGoals';
@@ -13,7 +13,7 @@ import BudgetFormDialog from '@/components/budget/BudgetFormDialog';
 import BudgetDeleteDialog from '@/components/budget/BudgetDeleteDialog';
 
 export default function BudgetSettingsPage() {
-  const router = useRouter();
+  const goBack = useBackOrHome();
   const { budgetGoals, upsertBudgetGoal, isUpserting, deleteBudgetGoal } = useBudgetGoals();
   const { categories } = useUserSettings();
 
@@ -94,7 +94,8 @@ export default function BudgetSettingsPage() {
           variant="ghost"
           size="icon"
           className="-ml-2 h-10 w-10 rounded-full"
-          onClick={() => router.back()}
+          onClick={goBack}
+          aria-label="뒤로 가기"
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>

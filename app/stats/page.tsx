@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ const EXPENSE_COLORS = [
 ];
 
 export default function StatsPage() {
-  const router = useRouter();
+  const goBack = useBackOrHome();
   const supabase = createClient();
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -226,7 +226,7 @@ export default function StatsPage() {
     <div className="flex flex-col min-h-dvh bg-background pb-24 font-sans">
       {/* 헤더 */}
       <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 backdrop-blur-sm px-4 py-3 border-b border-border/30">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
+        <Button variant="ghost" size="icon" onClick={goBack} aria-label="뒤로 가기" className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <span className="text-lg font-bold">지출 분석</span>

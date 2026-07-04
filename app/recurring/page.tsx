@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { ChevronLeft, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
@@ -20,6 +21,7 @@ interface FixedTransactionWithCategory extends FixedTransaction {
 
 export default function RecurringPage() {
   const router = useRouter();
+  const goBack = useBackOrHome();
   const supabase = createClient();
   const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -127,7 +129,7 @@ export default function RecurringPage() {
   return (
     <div className="min-h-dvh bg-background pb-20">
       <div className="sticky top-0 z-10 flex items-center gap-2 bg-background/95 backdrop-blur-sm px-4 py-3 border-b border-border/30">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10">
+        <Button variant="ghost" size="icon" onClick={goBack} aria-label="뒤로 가기" className="-ml-2 rounded-full h-10 w-10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <h1 className="text-xl font-bold">고정 지출/수입 관리</h1>

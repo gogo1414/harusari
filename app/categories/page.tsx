@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { ChevronLeft, Plus, Trash2, Edit2, Loader2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -142,7 +142,7 @@ function SortableCategoryItem({
 }
 
 export default function CategoryManagementPage() {
-  const router = useRouter();
+  const goBack = useBackOrHome();
   const supabase = createClient();
   const queryClient = useQueryClient();
   
@@ -369,7 +369,7 @@ export default function CategoryManagementPage() {
   return (
     <div className="min-h-dvh bg-background p-4 pb-20">
       <div className="mb-6 flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2">
+        <Button variant="ghost" size="icon" onClick={goBack} aria-label="뒤로 가기" className="-ml-2">
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <h1 className="text-xl font-bold">카테고리 관리</h1>

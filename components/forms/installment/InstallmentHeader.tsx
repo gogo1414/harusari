@@ -14,6 +14,7 @@ export default function InstallmentHeader({ isEditMode, onCancel }: InstallmentH
         variant="ghost"
         size="icon"
         onClick={onCancel}
+        aria-label="뒤로 가기"
         className="h-10 w-10 -ml-2 rounded-full hover:bg-muted"
       >
         <ChevronLeft className="h-6 w-6" />

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { calculateInstallment } from '@/lib/installment';
 import { validateAmount, validateInstallment } from '@/lib/validation';
 import { showToast } from '@/lib/toast';
-import { useRouter } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import type { Category } from '@/types/database';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -51,7 +51,7 @@ interface TransactionFormProps {
 }
 
 export default function TransactionForm({ categories, onSubmit, initialDate, initialData, isEditMode = false, isRecurringFixed = false }: TransactionFormProps) {
-  const router = useRouter();
+  const goBack = useBackOrHome();
   const [type, setType] = useState<'expense' | 'income'>(initialData?.type || 'expense');
   const [date, setDate] = useState<Date>(initialData?.date || initialDate || new Date());
   const [amount, setAmount] = useState(initialData?.amount ? initialData.amount.toLocaleString() : '');
@@ -212,7 +212,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
     <div className="flex flex-col min-h-dvh bg-background">
       {/* 헤더 */}
       <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 backdrop-blur-sm px-4 py-3 border-b border-border/30">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
+        <Button variant="ghost" size="icon" onClick={goBack} aria-label="뒤로 가기" className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <span className="text-lg font-bold">{isEditMode ? '내역 수정' : '새로운 내역'}</span>
