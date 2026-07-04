@@ -15,14 +15,12 @@ import {
   setYear,
   getYear,
   setDate,
-  subDays,
-  startOfDay,
-  parseISO,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCompactCurrency } from '@/lib/format';
+import { getCycleRange } from '@/lib/date';
 import type { Transaction } from '@/types/database';
 
 interface CalendarProps {
@@ -35,20 +33,11 @@ interface CalendarProps {
   onMonthChange: (date: Date) => void;
 }
 
-function getDailySummary(transactions: Transaction[], date: Date) {
-  // 문자열 포맷 비교 대신 Date 객체 비교로 변경 (더 안전함)
-  const dayTransactions = transactions.filter((t) => isSameDay(parseISO(t.date), date));
-
-  const income = dayTransactions
-    .filter((t) => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const expense = dayTransactions
-    .filter((t) => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  return { income, expense };
+interface DailySummary {
+  income: number;
+  expense: number;
 }
+const EMPTY_SUMMARY: DailySummary = { income: 0, expense: 0 };
 
 export default function Calendar({
   transactions,
@@ -63,37 +52,12 @@ export default function Calendar({
 
   const weekStartsOn = weekStartDay === 'sunday' ? 0 : 1;
 
-  // 급여 사이클 시작일 계산
-  const currentCycleStart = useMemo(() => {
-    // startOfMonth 제거: Smart Cycle을 위해 현재 선택된 날짜 그 자체를 기준으로 계산
-    const baseDate = currentDate; 
-    const startDay = cycleStartDay;
-
-    let cycleStart: Date;
-
-    // 현재 날짜의 일자가 시작일보다 작으면 이전 달의 시작일이 기준
-    // 예: 시작일 25일, 현재 10일 -> 지난달 25일 시작
-    if (baseDate.getDate() < startDay) {
-       cycleStart = setDate(subMonths(baseDate, 1), startDay);
-    } else {
-       // 예: 시작일 25일, 현재 26일 -> 이번달 25일 시작
-       cycleStart = setDate(baseDate, startDay);
-    }
-    
-    // 1일인 경우는 그냥 해당 월 1일
-    if (startDay === 1) {
-        cycleStart = setDate(baseDate, 1);
-    }
-
-    return startOfDay(cycleStart);
-  }, [currentDate, cycleStartDay]);
-
-  // 급여 사이클 종료일 계산
-  const currentCycleEnd = useMemo(() => {
-    // 사이클 시작일로부터 1달 뒤 - 1일
-    const end = subDays(addMonths(currentCycleStart, 1), 1);
-    return startOfDay(end);
-  }, [currentCycleStart]);
+  // 급여 사이클 범위 계산: lib/date.ts의 getCycleRange로 통일
+  // (29/30/31일 급여일의 말일 클램프 로직을 단일 소스로 사용)
+  const { start: currentCycleStart, end: currentCycleEnd } = useMemo(
+    () => getCycleRange(currentDate, cycleStartDay),
+    [currentDate, cycleStartDay]
+  );
 
   // 헤더에 표시할 월 라벨 기준일: 사이클의 중간점이 속한 월을 사용해
   // cycleStartDay 값에 관계없이 헤더와 그리드가 항상 일치하도록 한다.
@@ -119,6 +83,19 @@ export default function Calendar({
 
     return days;
   }, [currentCycleStart, currentCycleEnd, weekStartsOn]);
+
+  // 일별 합계를 Map으로 1회 구축 (셀당 filter+parseISO 반복 제거).
+  // transaction.date가 이미 'yyyy-MM-dd' 문자열이라 parseISO 불필요.
+  const dailySummaryMap = useMemo(() => {
+    const map = new Map<string, DailySummary>();
+    for (const t of transactions) {
+      const cur = map.get(t.date) || { income: 0, expense: 0 };
+      if (t.type === 'income') cur.income += t.amount;
+      else cur.expense += t.amount;
+      map.set(t.date, cur);
+    }
+    return map;
+  }, [transactions]);
 
   const weekDays = useMemo(() => {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -224,7 +201,7 @@ export default function Calendar({
 
           <div className="grid grid-cols-7 gap-y-1">
             {calendarDays.map((day) => {
-              const { income, expense } = getDailySummary(transactions, day);
+              const { income, expense } = dailySummaryMap.get(format(day, 'yyyy-MM-dd')) || EMPTY_SUMMARY;
               
               // OLD LOGIC: const isCurrentMonth = isSameMonth(day, currentDate);
               // NEW LOGIC: Is the day within the current cycle range?

@@ -1,4 +1,4 @@
-import { startOfMonth, endOfMonth, addMonths, subMonths, setDate, subDays, format } from 'date-fns';
+import { startOfMonth, endOfMonth, subDays, startOfDay, format } from 'date-fns';
 import type { Transaction } from '@/types/database';
 
 export interface CycleRange {
@@ -7,29 +7,45 @@ export interface CycleRange {
 }
 
 /**
+ * 사이클 시작일을 해당 월의 말일로 클램프한 Date를 반환.
+ * 예) cycleDay=31, 2월 → 2월 28/29일. (setDate의 다음 달 롤오버 버그 방지)
+ */
+function clampedCycleStart(year: number, monthIndex: number, cycleDay: number): Date {
+  // new Date(y, m + 1, 0) = 해당 월의 말일
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  // monthIndex가 -1이나 12여도 Date 생성자가 연도 경계를 정규화한다.
+  return startOfDay(new Date(year, monthIndex, Math.min(cycleDay, lastDay)));
+}
+
+/**
  * 급여 사이클 기준 날짜 범위 계산
  * @param baseDate 기준 날짜
  * @param cycleDay 급여일 (1~31)
  * @returns 사이클 시작일과 종료일
+ *
+ * cycleDay가 29/30/31이고 해당 월에 그 일자가 없으면 말일로 클램프하여
+ * 사이클 구멍(고아 날짜)이나 겹침(이중 집계)이 발생하지 않도록 한다.
  */
 export function getCycleRange(baseDate: Date, cycleDay: number): CycleRange {
-  let start: Date;
-  let end: Date;
-
   if (cycleDay === 1) {
-    start = startOfMonth(baseDate);
-    end = endOfMonth(baseDate);
-  } else {
-    const currentDay = baseDate.getDate();
-    if (currentDay >= cycleDay) {
-      start = setDate(baseDate, cycleDay);
-      end = subDays(addMonths(start, 1), 1);
-    } else {
-      const prevMonth = subMonths(baseDate, 1);
-      start = setDate(prevMonth, cycleDay);
-      end = subDays(addMonths(start, 1), 1);
-    }
+    return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
   }
+
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+
+  // 이번 달의 (클램프된) 사이클 시작일
+  const thisMonthStart = clampedCycleStart(year, month, cycleDay);
+
+  // 기준일이 이번 달 시작일 이전이면 지난달 시작일이 기준
+  const start =
+    startOfDay(baseDate).getTime() >= thisMonthStart.getTime()
+      ? thisMonthStart
+      : clampedCycleStart(year, month - 1, cycleDay);
+
+  // 종료일 = 다음 달 클램프된 시작일 - 1일
+  const nextStart = clampedCycleStart(start.getFullYear(), start.getMonth() + 1, cycleDay);
+  const end = subDays(nextStart, 1);
 
   return { start, end };
 }
