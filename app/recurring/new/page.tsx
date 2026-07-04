@@ -69,42 +69,39 @@ export default function NewRecurringPage() {
         // 백필 대상 날짜 계산은 공용 유틸로 통일 (lib/backfill)
         const targetDates = generateBackfillDates({ startDate, now, day, endDateStr });
 
-        const generatedDates: string[] = [];
+        if (targetDates.length > 0) {
+          // 개별 insert(N+1) → 배열 단일 insert로 원자화 (3-11).
+          // 신규 fixed_transaction_id라 (source_fixed_id, date) 충돌은 정상 경로에서 발생하지 않는다.
+          const rows = targetDates.map((targetDateStr) => ({
+            user_id: user.id,
+            amount: formData.amount,
+            type: formData.type,
+            category_id: formData.category_id,
+            date: targetDateStr,
+            memo: formData.memo,
+            source_fixed_id: newFixed.fixed_transaction_id,
+          }));
 
-        for (const targetDateStr of targetDates) {
-          const { error: txError } = await supabase
-              .from('transactions')
-              // @ts-expect-error - Supabase insert 타입 불일치
-              .insert({
-                  user_id: user.id,
-                  amount: formData.amount,
-                  type: formData.type,
-                  category_id: formData.category_id,
-                  date: targetDateStr,
-                  memo: formData.memo,
-                  source_fixed_id: newFixed.fixed_transaction_id,
-              });
+          // @ts-expect-error - Supabase insert 타입 불일치
+          const { error: txError } = await supabase.from('transactions').insert(rows);
 
-          if (!txError || txError.code === '23505') {
-             // 23505: 이미 생성된 회차 → 중복 방지 정상 동작
-             generatedDates.push(targetDateStr);
-          } else {
-             console.error(`Failed to generate transaction for ${targetDateStr}`, txError);
+          // 23505(재시도 등으로 이미 존재)는 멱등 처리, 그 외 에러는 부분 데이터 없이 전체 실패로 알림
+          if (txError && txError.code !== '23505') {
+            throw txError;
           }
-        }
 
-        // 가장 최근에 생성된 날짜로 last_generated 업데이트
-        if (generatedDates.length > 0) {
-            const lastGeneratedDate = generatedDates[generatedDates.length - 1];
-            await supabase
-                .from('fixed_transactions')
-                // @ts-expect-error - update 타입 불일치
-                .update({ last_generated: lastGeneratedDate })
-                .eq('fixed_transaction_id', newFixed.fixed_transaction_id);
+          const lastGeneratedDate = targetDates[targetDates.length - 1];
+          await supabase
+              .from('fixed_transactions')
+              // @ts-expect-error - update 타입 불일치
+              .update({ last_generated: lastGeneratedDate })
+              .eq('fixed_transaction_id', newFixed.fixed_transaction_id);
         }
 
       } catch (genError) {
+          // 고정 내역 자체는 등록됨. 과거분 백필만 실패한 것이므로 경고만 노출(다음 cron이 보정).
           console.error('Failed to generate initial transactions:', genError);
+          showToast.warning('고정 내역은 등록됐지만 과거 내역 생성에 실패했어요. 다음 자동 생성 때 반영됩니다.');
       }
     },
     onSuccess: () => {
