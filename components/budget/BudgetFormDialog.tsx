@@ -29,6 +29,7 @@ interface BudgetFormDialogProps {
   amount: string;
   onChangeAmount: (val: string) => void;
   onSubmit: () => void;
+  isSaving?: boolean;
 }
 
 export default function BudgetFormDialog({
@@ -40,9 +41,16 @@ export default function BudgetFormDialog({
   onSelectCategory,
   amount,
   onChangeAmount,
-  onSubmit
+  onSubmit,
+  isSaving = false,
 }: BudgetFormDialogProps) {
   const [isCategorySelectOpen, setIsCategorySelectOpen] = useState(false);
+
+  // 다른 금액 입력과 동일하게: 숫자만 허용 + 콤마 포맷 (부모가 제출 시 콤마 제거)
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/[^0-9]/g, '');
+    onChangeAmount(digits ? Number(digits).toLocaleString() : '');
+  };
 
   // 현재 선택된 카테고리 객체
   const selectedCategoryObj = categories.find(c => c.category_id === selectedCategory);
@@ -106,12 +114,13 @@ export default function BudgetFormDialog({
             <div className="space-y-2">
               <Label className="font-bold text-muted-foreground ml-1 text-xs">목표 금액</Label>
               <div className="relative">
-                <Input 
-                  type="number" 
-                  placeholder="0" 
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
                   className="h-14 rounded-2xl text-xl font-bold pr-10 text-right bg-muted/30 border-transparent focus:bg-background focus:border-primary/30 active:scale-[0.99] transition-all"
                   value={amount}
-                  onChange={(e) => onChangeAmount(e.target.value)}
+                  onChange={handleAmountChange}
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">원</span>
               </div>
@@ -119,11 +128,12 @@ export default function BudgetFormDialog({
           </div>
 
           <DialogFooter className="mt-2">
-            <Button 
-                onClick={onSubmit} 
+            <Button
+                onClick={onSubmit}
+                disabled={!selectedCategory || !amount || isSaving}
                 className="h-14 rounded-2xl w-full text-lg font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.98]"
             >
-              저장하기
+              {isSaving ? '저장 중...' : '저장하기'}
             </Button>
           </DialogFooter>
         </DialogContent>

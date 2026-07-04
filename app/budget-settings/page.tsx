@@ -14,7 +14,7 @@ import BudgetDeleteDialog from '@/components/budget/BudgetDeleteDialog';
 
 export default function BudgetSettingsPage() {
   const router = useRouter();
-  const { budgetGoals, upsertBudgetGoal, deleteBudgetGoal } = useBudgetGoals();
+  const { budgetGoals, upsertBudgetGoal, isUpserting, deleteBudgetGoal } = useBudgetGoals();
   const { categories } = useUserSettings();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -82,7 +82,7 @@ export default function BudgetSettingsPage() {
 
   const openEdit = (categoryId: string, currentAmount: number) => {
       setSelectedCategory(categoryId);
-      setAmount(currentAmount.toString());
+      setAmount(currentAmount.toLocaleString());
       setIsDialogOpen(true);
   };
 
@@ -163,6 +163,7 @@ export default function BudgetSettingsPage() {
           amount={amount}
           onChangeAmount={setAmount}
           onSubmit={handleSubmit}
+          isSaving={isUpserting}
       />
 
       <BudgetDeleteDialog 

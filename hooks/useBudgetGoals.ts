@@ -79,6 +79,7 @@ export function useBudgetGoals() {
     budgetGoals,
     isLoading,
     upsertBudgetGoal: upsertMutation.mutate,
+    isUpserting: upsertMutation.isPending,
     deleteBudgetGoal: deleteMutation.mutate,
   };
 }
