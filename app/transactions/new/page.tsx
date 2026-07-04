@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { buildInstallmentBackfillEntries } from '@/lib/installment-logic';
+import { generateBackfillDates } from '@/lib/backfill';
 import { Loader2 } from 'lucide-react';
 import { Suspense } from 'react';
 
@@ -37,9 +38,10 @@ function NewTransactionContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
-  // URL에서 date 파라미터 확인
+  // URL에서 date 파라미터 확인 (잘못된 값은 무시 → format() RangeError 방지)
   const dateParam = searchParams.get('date');
-  const initialDate = dateParam ? new Date(dateParam) : undefined;
+  const parsedDate = dateParam ? new Date(dateParam) : null;
+  const initialDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : undefined;
 
   // 카테고리 로드
   const { data: categories = [], isLoading } = useQuery({
@@ -58,6 +60,9 @@ function NewTransactionContent() {
       if (!user) throw new Error('Not authenticated');
 
       const formattedDate = format(data.date, 'yyyy-MM-dd');
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      // 시작일이 미래면 백필이 0건이므로, last_generated를 시작일로 두면 cron이 1회차를 영구 스킵한다.
+      const isFutureStart = formattedDate > todayStr;
       let sourceFixedId = null;
 
       // 1. 할부 결제 처리
@@ -85,7 +90,8 @@ function NewTransactionContent() {
           end_type: 'date',
           end_date: format(endDate, 'yyyy-MM-dd'),
           is_active: true,
-          last_generated: formattedDate,
+          // 미래 시작이면 null → cron이 시작일 도래 시 1회차를 생성 (1회차 누락 방지)
+          last_generated: isFutureStart ? null : formattedDate,
           // 할부 전용 필드
           is_installment: true,
           installment_principal: data.amount,
@@ -126,7 +132,8 @@ function NewTransactionContent() {
             source_fixed_id: sourceFixedId,
           } as TransactionInsert);
 
-          if (transactionError) throw transactionError;
+          // 23505(unique_violation)은 이미 생성된 회차이므로 무시
+          if (transactionError && transactionError.code !== '23505') throw transactionError;
         }
 
         if (backfillEntries.length > 0) {
@@ -158,7 +165,8 @@ function NewTransactionContent() {
           end_type: data.end_type || 'never',
           end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
           is_active: true,
-          last_generated: formattedDate,
+          // 미래 시작이면 null (아래 백필 루프에서 이번 달 회차 생성 시 갱신됨)
+          last_generated: isFutureStart ? null : formattedDate,
         };
 
         const { data: fixedData, error: fixedError } = await supabase
@@ -171,36 +179,21 @@ function NewTransactionContent() {
         if (fixedError) throw fixedError;
         sourceFixedId = (fixedData as FixedTransactionRow).fixed_transaction_id;
 
-        // 과거 내역 일괄 생성 로직 (Recurring Page와 동일하게 적용)
+        // 과거 내역 일괄 생성 로직 (공용 유틸로 통일 — lib/backfill)
         try {
             const startDate = new Date(data.date);
             const now = new Date();
             const day = startDate.getDate();
-            
-            let pointer = new Date(startDate);
             const generatedDates: string[] = [];
-    
-            // 루프: pointer가 이번 달(포함) 이전인 동안 반복
-            while (
-              pointer.getFullYear() < now.getFullYear() || 
-              (pointer.getFullYear() === now.getFullYear() && pointer.getMonth() <= now.getMonth())
-            ) {
-              const year = pointer.getFullYear();
-              const month = pointer.getMonth(); // 0-based
-              
-              const daysInMonth = new Date(year, month + 1, 0).getDate();
-              const targetDay = Math.min(day, daysInMonth);
-              
-              const targetDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
-              const targetDateObj = new Date(targetDateStr);
-    
-              // 종료일 체크
-              if (data.end_type === 'date' && data.end_date) {
-                 const endDateObj = new Date(data.end_date);
-                 if (targetDateObj > endDateObj) break;
-              }
-    
-              // 트랜잭션 생성
+
+            const endDateStr =
+              data.end_type === 'date' && data.end_date
+                ? format(data.end_date, 'yyyy-MM-dd')
+                : null;
+
+            const targetDates = generateBackfillDates({ startDate, now, day, endDateStr });
+
+            for (const targetDateStr of targetDates) {
               const { error: txError } = await supabase
                   .from('transactions')
                   // @ts-expect-error - Supabase insert 타입 불일치
@@ -213,16 +206,15 @@ function NewTransactionContent() {
                       memo: data.memo,
                       source_fixed_id: sourceFixedId,
                   } as TransactionInsert);
-    
-              if (!txError) {
+
+              if (!txError || txError.code === '23505') {
+                 // 23505: 이미 생성된 회차 → 중복 방지 정상 동작
                  generatedDates.push(targetDateStr);
               } else {
                  console.error(`Failed to generate transaction for ${targetDateStr}`, txError);
               }
-    
-              pointer = new Date(year, month + 1, 1);
             }
-    
+
             // 가장 최근에 생성된 날짜로 last_generated 업데이트
             if (generatedDates.length > 0) {
                 const lastGeneratedDate = generatedDates[generatedDates.length - 1];
@@ -257,6 +249,8 @@ function NewTransactionContent() {
     onSuccess: () => {
       // 쿼리 무효화 및 이동
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      // 반복/할부는 fixed_transactions에도 insert하므로 목록 갱신 위해 함께 무효화 (3-7)
+      queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
       showToast.transactionSaved();
       router.back(); 
       router.refresh(); 

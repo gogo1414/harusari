@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
 import { showToast } from '@/lib/toast';
 import { Loader2 } from 'lucide-react';
+import QueryErrorState from '@/components/common/QueryErrorState';
 import type { Category, FixedTransaction } from '@/types/database';
 
 export default function EditRecurringPage() {
@@ -25,7 +26,7 @@ export default function EditRecurringPage() {
     },
   });
 
-  const { data: fixedItem, isLoading } = useQuery({
+  const { data: fixedItem, isLoading, isError, refetch } = useQuery({
     queryKey: ['fixed_transaction', id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -71,6 +72,10 @@ export default function EditRecurringPage() {
     }
   });
 
+  if (isError) {
+    return <QueryErrorState fullHeight onRetry={() => refetch()} />;
+  }
+
   if (isLoading || !fixedItem) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
@@ -80,8 +85,10 @@ export default function EditRecurringPage() {
   }
 
   // 현재 날짜 기준으로 day 설정 (날짜 선택 UI에 표시하기 위함)
+  // day=31 등 해당 월에 없는 일자는 다음 달로 롤오버되므로 말일로 클램프
   const today = new Date();
-  const initialDate = new Date(today.getFullYear(), today.getMonth(), fixedItem.day);
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const initialDate = new Date(today.getFullYear(), today.getMonth(), Math.min(fixedItem.day, lastDayOfMonth));
 
   const initialData: TransactionFormData = {
     type: fixedItem.type,

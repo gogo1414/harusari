@@ -7,8 +7,15 @@ import InstallmentForm, { InstallmentFormData } from '@/components/forms/Install
 import { showToast } from '@/lib/toast';
 import { Loader2 } from 'lucide-react';
 import type { Category, FixedTransaction } from '@/types/database';
-import { addMonths } from 'date-fns';
+import { addMonths, subMonths, parseISO, setDate, format } from 'date-fns';
 import { getInstallmentAmountByCurrentMonth } from '@/lib/installment-logic';
+import QueryErrorState from '@/components/common/QueryErrorState';
+
+// 원래 결제일(day)을 해당 월 말일로 클램프
+function clampDay(base: Date, day: number): Date {
+  const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  return setDate(base, Math.min(day, lastDay));
+}
 
 export default function EditInstallmentPage() {
   const router = useRouter();
@@ -28,7 +35,7 @@ export default function EditInstallmentPage() {
   });
 
   // 기존 할부 데이터 조회
-  const { data: installmentData, isLoading } = useQuery({
+  const { data: installmentData, isLoading, isError, refetch } = useQuery({
     queryKey: ['installment', id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -68,7 +75,7 @@ export default function EditInstallmentPage() {
           amount: currentAmount,
           category_id: formData.category_id,
           memo: `${formData.memo} (할부 ${installmentData?.installment_current_month || 1}/${formData.months})`,
-          end_date: endDate.toISOString().split('T')[0],
+          end_date: format(endDate, 'yyyy-MM-dd'),
           installment_principal: formData.principal,
           installment_months: formData.months,
           installment_rate: formData.annualRate,
@@ -90,6 +97,10 @@ export default function EditInstallmentPage() {
     },
   });
 
+  if (isError) {
+    return <QueryErrorState fullHeight onRetry={() => refetch()} />;
+  }
+
   if (isLoading || !installmentData) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
@@ -98,9 +109,16 @@ export default function EditInstallmentPage() {
     );
   }
 
+  // 원래 결제 시작일 복원: end_date - months 로 역산하고, 결제일(day)을 말일 클램프해 맞춘다.
+  // (초기값을 오늘로 두면 저장만 눌러도 결제일/종료일이 오늘 기준으로 왜곡되던 버그 수정)
+  const months = installmentData.installment_months || 3;
+  const reconstructedStart = installmentData.end_date
+    ? clampDay(subMonths(parseISO(installmentData.end_date), months), installmentData.day)
+    : clampDay(new Date(), installmentData.day);
+
   // 기존 데이터를 폼 초기값으로 변환
   const initialData: InstallmentFormData = {
-    date: new Date(), // 수정 시에는 현재 날짜 기준으로 표시
+    date: reconstructedStart,
     principal: installmentData.installment_principal || 0,
     months: installmentData.installment_months || 3,
     annualRate: installmentData.installment_rate || 0,

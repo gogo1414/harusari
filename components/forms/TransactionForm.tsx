@@ -228,8 +228,9 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           onChange={(e) => setMemo(e.target.value)}
         />
 
-        {/* 결제 방식 섹션 (지출일 때만 표시) */}
-        {type === 'expense' && (
+        {/* 결제 방식 섹션 (지출이면서 신규 등록일 때만 표시)
+            수정 화면에서는 update가 반복/할부 필드를 무시하므로 옵션을 숨긴다 (3-6) */}
+        {type === 'expense' && !isEditMode && (
           <TransactionInstallmentOption
             paymentType={paymentType}
             onPaymentTypeChange={setPaymentType}
@@ -243,8 +244,9 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           />
         )}
 
-        {/* 고정 지출 설정 (할부가 아닐 때만 표시) */}
-        {paymentType !== 'installment' && (
+        {/* 고정 지출 설정 (할부가 아닐 때만 표시)
+            일반 거래 수정 화면에서는 숨김. 고정내역 수정(isRecurringFixed)에서는 유지 */}
+        {paymentType !== 'installment' && (!isEditMode || isRecurringFixed) && (
           <TransactionRecurringOption
             isRecurring={isRecurring}
             onRecurringChange={setIsRecurring}

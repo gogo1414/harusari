@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
 import { showToast } from '@/lib/toast';
+import { format } from 'date-fns';
+import { generateBackfillDates } from '@/lib/backfill';
 import type { Category, Database } from '@/types/database';
 
 type FixedTransaction = Database['public']['Tables']['fixed_transactions']['Row'];
@@ -42,7 +44,8 @@ export default function NewRecurringPage() {
           category_id: formData.category_id,
           memo: formData.memo,
           end_type: formData.end_type,
-          end_date: formData.end_date ? formData.end_date.toISOString().split('T')[0] : null,
+          // toISOString은 KST 자정을 UTC 전날로 만들어 하루 밀림 → format으로 통일
+          end_date: formData.end_date ? format(formData.end_date, 'yyyy-MM-dd') : null,
         })
         .select()
         .single();
@@ -56,38 +59,19 @@ export default function NewRecurringPage() {
       try {
         const startDate = new Date(formData.date);
         const now = new Date();
-        const kstOffset = 9 * 60 * 60 * 1000;
-        
-        // "언제까지 생성할 것인가?" -> 현재 시점의 '월'까지 (미래 날짜라도 이번 달이면 생성)
-        // 비교를 위해 날짜 객체 복사
-        let pointer = new Date(startDate);
-        
+
+        // 종료일 문자열 (yyyy-MM-dd)
+        const endDateStr =
+          formData.end_type === 'date' && formData.end_date
+            ? format(formData.end_date, 'yyyy-MM-dd')
+            : null;
+
+        // 백필 대상 날짜 계산은 공용 유틸로 통일 (lib/backfill)
+        const targetDates = generateBackfillDates({ startDate, now, day, endDateStr });
+
         const generatedDates: string[] = [];
 
-        // 루프: pointer가 이번 달(포함) 이전인 동안 반복
-        // (년도가 적거나, 년도가 같으면서 월이 작거나 같은 경우)
-        while (
-          pointer.getFullYear() < now.getFullYear() || 
-          (pointer.getFullYear() === now.getFullYear() && pointer.getMonth() <= now.getMonth())
-        ) {
-          const year = pointer.getFullYear();
-          const month = pointer.getMonth(); // 0-based
-          
-          // 이번 달의 말일 계산 (2월 30일 설정 시 2월 28/29일로 조정 로직)
-          const daysInMonth = new Date(year, month + 1, 0).getDate();
-          const targetDay = Math.min(day, daysInMonth);
-          
-          const targetDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
-          const targetDateObj = new Date(targetDateStr);
-
-          // 종료일 체크
-          if (formData.end_type === 'date' && formData.end_date) {
-             const endDateObj = new Date(formData.end_date);
-             // 종료일이 해당 회차 날짜보다 빠르면 생성 중단
-             if (targetDateObj > endDateObj) break;
-          }
-
-          // 트랜잭션 생성
+        for (const targetDateStr of targetDates) {
           const { error: txError } = await supabase
               .from('transactions')
               // @ts-expect-error - Supabase insert 타입 불일치
@@ -101,18 +85,12 @@ export default function NewRecurringPage() {
                   source_fixed_id: newFixed.fixed_transaction_id,
               });
 
-          if (!txError) {
+          if (!txError || txError.code === '23505') {
+             // 23505: 이미 생성된 회차 → 중복 방지 정상 동작
              generatedDates.push(targetDateStr);
           } else {
              console.error(`Failed to generate transaction for ${targetDateStr}`, txError);
           }
-
-          // 다음 달로 이동
-          // 주의: 단순 setMonth+1 은 말일 문제(1/31 -> 2/28 -> 3/28) 발생 가능성.
-          // 사용자가 지정한 "원래 day"를 유지하며 달만 바꿔야 함.
-          // pointer를 다음달 1일로 설정하고, 루프 내부에서 원래 'day'를 적용하는 식인 이미 그렇게 하고 있음.
-          // 여기서 pointer만 다음 달로 넘겨주면 됨.
-          pointer = new Date(year, month + 1, 1);
         }
 
         // 가장 최근에 생성된 날짜로 last_generated 업데이트
@@ -131,6 +109,8 @@ export default function NewRecurringPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
+      // 백필로 transactions에 직접 insert하므로 홈 캘린더/합계 반영 위해 함께 무효화 (3-7)
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
       showToast.success('고정 내역이 추가되었습니다');
       router.back();
     },
