@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 // import { format } from 'date-fns';
 // import { ko } from 'date-fns/locale';
 import { ChevronLeft } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { calculateInstallment } from '@/lib/installment';
 import { validateAmount, validateInstallment } from '@/lib/validation';

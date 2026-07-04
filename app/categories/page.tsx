@@ -1,10 +1,6 @@
 'use client';
 
-import type { Database } from '@/types/database';
-
-type CategoryInsert = Database['public']['Tables']['categories']['Insert'];
-
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Trash2, Edit2, Loader2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,8 +19,9 @@ import { createClient } from '@/lib/supabase/client';
 import type { Category } from '@/types/database';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { showToast } from '@/lib/toast';
-import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
+import { CategoryIcon } from '@/components/category/IconPicker';
 import CategoryFormDialog from '@/components/category/CategoryFormDialog';
+import CategoryDeleteDialog from '@/components/category/CategoryDeleteDialog';
 
 // dnd-kit imports
 import {
@@ -152,11 +149,10 @@ export default function CategoryManagementPage() {
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const isSubmittingRef = useRef(false);
 
-  const [name, setName] = useState('');
-  const [icon, setIcon] = useState('money');
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  // 삭제 확인 다이얼로그 상태 (native confirm 대체) + 사용 건수 안내
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [deleteUsage, setDeleteUsage] = useState<{ transactions: number; fixed: number } | null>(null);
 
   // 카테고리 데이터 불러오기
   const { data, isLoading } = useQuery<Category[]>({
@@ -327,39 +323,45 @@ export default function CategoryManagementPage() {
 
   const openAddDialog = () => {
     setEditingCategory(null);
-    setName('');
-    setIcon('money');
     setIsDialogOpen(true);
   };
 
   const openEditDialog = (category: Category) => {
     setEditingCategory(category);
-    setName(category.name);
-    setIcon(category.icon);
     setIsDialogOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!name || isSubmittingRef.current) return;
-    
-    isSubmittingRef.current = true;
-    try {
-        if (editingCategory) {
-          await updateMutation.mutateAsync({ id: editingCategory.category_id, name, icon });
-        } else {
-          await addMutation.mutateAsync({ name, icon, type });
-        }
-    } catch (e) {
-        console.error(e);
-    } finally {
-        isSubmittingRef.current = false;
-    }
+
+  // 삭제 요청: 확인 다이얼로그를 열고 사용 건수를 조회한다 (native confirm 대체)
+  const handleDelete = (id: string) => {
+    const target = data?.find((c) => c.category_id === id) || null;
+    if (!target) return;
+    setDeleteTarget(target);
+    setDeleteUsage(null); // 조회 중 표시
+
+    (async () => {
+      const [txRes, fixedRes] = await Promise.all([
+        supabase
+          .from('transactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('category_id', id),
+        supabase
+          .from('fixed_transactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('category_id', id),
+      ]);
+      setDeleteUsage({
+        transactions: txRes.count ?? 0,
+        fixed: fixedRes.count ?? 0,
+      });
+    })();
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('정말 삭제하시겠습니까?')) {
-      deleteMutation.mutate(id);
-    }
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.category_id);
+    setDeleteTarget(null);
+    setDeleteUsage(null);
   };
 
   const isSaving = addMutation.isPending || updateMutation.isPending;
@@ -434,6 +436,20 @@ export default function CategoryManagementPage() {
         onAdd={async (data) => await addMutation.mutateAsync(data)}
         onUpdate={async (data) => await updateMutation.mutateAsync(data)}
         isSaving={isSaving}
+      />
+
+      {/* 삭제 확인 다이얼로그 (사용 건수 안내 포함) */}
+      <CategoryDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteUsage(null);
+          }
+        }}
+        onConfirm={confirmDelete}
+        categoryName={deleteTarget?.name}
+        usage={deleteUsage}
       />
     </div>
   );

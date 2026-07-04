@@ -234,7 +234,6 @@ export async function GET(request: Request) {
              .from('user_push_subscriptions')
              .delete()
              .eq('user_id', user_id)
-             // eslint-disable-next-line @typescript-eslint/no-explicit-any
              .filter('subscription->>endpoint', 'eq', (subscription as unknown as { endpoint: string }).endpoint);
            results.push({ user_id, status: 'removed' });
         } else {
