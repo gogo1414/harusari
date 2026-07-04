@@ -84,8 +84,9 @@ export function useDailySurvival({
     today.setHours(0, 0, 0, 0);
     const end = new Date(cycleEndDate);
     end.setHours(0, 0, 0, 0);
-    const diffTime = Math.abs(end.getTime() - today.getTime());
-    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    // 과거 사이클 조회 시 Math.abs로 인해 남은 일수가 잘못 계산되던 문제 수정 (음수는 1로 클램프)
+    const diffTime = end.getTime() - today.getTime();
+    const daysLeft = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
 
     // 남은 생활비
     const disposableBalance = budget - currentSpent;

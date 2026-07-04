@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import IconPicker, { CategoryIcon } from '@/components/category/IconPicker';
 import type { Category } from '@/types/database';
 
@@ -21,8 +22,8 @@ interface CategoryFormDialogProps {
   onOpenChange: (open: boolean) => void;
   editingCategory: Category | null;
   type: 'income' | 'expense';
-  onAdd: (data: { name: string; icon: string; type: string }) => Promise<void>;
-  onUpdate: (data: { id: string; name: string; icon: string }) => Promise<void>;
+  onAdd: (data: { name: string; icon: string; type: string; is_savings: boolean }) => Promise<void>;
+  onUpdate: (data: { id: string; name: string; icon: string; is_savings: boolean }) => Promise<void>;
   isSaving: boolean;
 }
 
@@ -37,8 +38,12 @@ export default function CategoryFormDialog({
 }: CategoryFormDialogProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('money');
+  const [isSavings, setIsSavings] = useState(false);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const isSubmittingRef = useRef(false);
+
+  // 저축 속성은 지출 카테고리에만 노출 (income 탭에서는 숨김)
+  const showSavingsToggle = type === 'expense';
 
   // 다이얼로그가 열리거나 editingCategory가 변경될 때 상태 초기화
   useEffect(() => {
@@ -46,22 +51,25 @@ export default function CategoryFormDialog({
       if (editingCategory) {
         setName(editingCategory.name);
         setIcon(editingCategory.icon);
+        setIsSavings(editingCategory.is_savings ?? false);
       } else {
         setName('');
         setIcon('money');
+        setIsSavings(false);
       }
     }
   }, [open, editingCategory]);
 
   const handleSave = async () => {
     if (!name || isSubmittingRef.current) return;
-    
+
+    const savingsValue = showSavingsToggle ? isSavings : false;
     isSubmittingRef.current = true;
     try {
         if (editingCategory) {
-          await onUpdate({ id: editingCategory.category_id, name, icon });
+          await onUpdate({ id: editingCategory.category_id, name, icon, is_savings: savingsValue });
         } else {
-          await onAdd({ name, icon, type });
+          await onAdd({ name, icon, type, is_savings: savingsValue });
         }
     } catch (e) {
         console.error(e);
@@ -112,6 +120,21 @@ export default function CategoryFormDialog({
               className="h-12 rounded-xl text-lg font-medium"
             />
           </div>
+
+          {/* 저축 카테고리 스위치 (지출 카테고리 전용) */}
+          {showSavingsToggle && (
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 p-4">
+              <div className="flex flex-col gap-0.5">
+                <Label htmlFor="is-savings" className="text-base font-semibold">
+                  🏦 저축 카테고리
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  지출이 아닌 저축(적금·투자 등)으로 분리해서 집계돼요
+                </span>
+              </div>
+              <Switch id="is-savings" checked={isSavings} onCheckedChange={setIsSavings} />
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">

@@ -100,13 +100,18 @@ function SortableCategoryItem({
           <GripVertical className="h-5 w-5" />
         </div>
 
-        <CategoryIcon 
-          iconName={category.icon} 
-          className="h-12 w-12 transition-transform group-hover:scale-105" 
-          variant="squircle" 
-          showBackground={true} 
+        <CategoryIcon
+          iconName={category.icon}
+          className="h-12 w-12 transition-transform group-hover:scale-105"
+          variant="squircle"
+          showBackground={true}
         />
         <span className="font-semibold text-foreground/90">{category.name}</span>
+        {category.is_savings && (
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            🏦 저축
+          </span>
+        )}
       </div>
       
       {/* 수정/삭제 버튼 */}
@@ -226,13 +231,13 @@ export default function CategoryManagementPage() {
 
   // 추가 Mutation
   const addMutation = useMutation({
-    mutationFn: async (newCategory: { name: string; icon: string; type: string }) => {
+    mutationFn: async (newCategory: { name: string; icon: string; type: string; is_savings?: boolean }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
       // 현재 목록의 마지막 순서 + 1
-      const maxSortOrder = orderedCategories.length > 0 
-        ? Math.max(...orderedCategories.map(c => c.sort_order || 0)) 
+      const maxSortOrder = orderedCategories.length > 0
+        ? Math.max(...orderedCategories.map(c => c.sort_order || 0))
         : -1;
 
       const { error } = await supabase.from('categories').insert({
@@ -241,29 +246,43 @@ export default function CategoryManagementPage() {
         icon: newCategory.icon,
         type: newCategory.type as 'income' | 'expense',
         sort_order: maxSortOrder + 1,
+        is_savings: newCategory.is_savings ?? false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      showToast.success('카테고리가 추가되었습니다');
       setIsDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error(error);
+      showToast.error('카테고리 추가에 실패했습니다');
     },
   });
 
   // 수정 Mutation
   const updateMutation = useMutation({
-    mutationFn: async (category: { id: string; name: string; icon: string }) => {
+    mutationFn: async (category: { id: string; name: string; icon: string; is_savings?: boolean }) => {
       const { error } = await supabase
         .from('categories')
         // @ts-expect-error - 부분 업데이트 타입 불일치
-        .update({ name: category.name, icon: category.icon })
+        .update({ name: category.name, icon: category.icon, is_savings: category.is_savings ?? false })
         .eq('category_id', category.id);
       if (error) throw error;
     },
     onSuccess: () => {
+      // 저축 여부 변경 시 통계/목록이 카테고리 기반 재분류되므로 함께 무효화
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
+      showToast.success('카테고리가 수정되었습니다');
       setIsDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error(error);
+      showToast.error('카테고리 수정에 실패했습니다');
     },
   });
 
@@ -277,7 +296,15 @@ export default function CategoryManagementPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // 삭제 시 관련 거래/고정내역이 '카테고리 없음'으로 바뀌므로 함께 무효화 (3-8)
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
+      showToast.success('카테고리가 삭제되었습니다');
+    },
+    onError: (error) => {
+      console.error(error);
+      showToast.error('카테고리 삭제에 실패했습니다');
     },
   });
 
@@ -355,8 +382,8 @@ export default function CategoryManagementPage() {
         className="mb-6 w-full"
       >
         <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1">
-          <TabsTrigger value="expense" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">지출</TabsTrigger>
-          <TabsTrigger value="income" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">수입</TabsTrigger>
+          <TabsTrigger value="expense" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-muted data-[state=active]:shadow-sm">지출</TabsTrigger>
+          <TabsTrigger value="income" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-muted data-[state=active]:shadow-sm">수입</TabsTrigger>
         </TabsList>
       </Tabs>
 

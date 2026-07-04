@@ -41,6 +41,7 @@ export interface Database {
           is_default: boolean;
           created_at: string;
           sort_order: number | null;
+          is_savings: boolean;
         };
         Insert: {
           category_id?: string;
@@ -51,6 +52,7 @@ export interface Database {
           is_default?: boolean;
           created_at?: string;
           sort_order?: number | null;
+          is_savings?: boolean;
         };
         Update: {
           name?: string;
@@ -58,6 +60,7 @@ export interface Database {
           icon?: string;
           is_default?: boolean;
           sort_order?: number | null;
+          is_savings?: boolean;
         };
       };
       transactions: {

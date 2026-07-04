@@ -6,6 +6,7 @@ import { ChevronLeft, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { showToast } from '@/lib/toast';
 import type { FixedTransaction, Category } from '@/types/database';
 
 import RecurringSummary from './components/RecurringSummary';
@@ -68,6 +69,13 @@ export default function RecurringPage() {
       if (deleteRelated) {
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
       }
+      showToast.success('고정 내역이 삭제되었습니다');
+      setDeleteId(null);
+      setDeleteRelated(false);
+    },
+    onError: (error) => {
+      console.error(error);
+      showToast.error('삭제에 실패했습니다');
       setDeleteId(null);
       setDeleteRelated(false);
     },
@@ -86,15 +94,35 @@ export default function RecurringPage() {
 
 
 
-  // 통계 계산
+  // 저축 분리: 지출이면서 저축 카테고리인 항목을 별도 집계
+  const isSavingsItem = (item: FixedTransactionWithCategory) =>
+    item.type === 'expense' && !!item.categories?.is_savings;
+
+  // 통계 계산 (수입 / 고정 지출(저축 제외) / 저축)
   const stats = recurringItems.reduce(
-    (acc: { income: number; expense: number }, item: FixedTransactionWithCategory) => {
+    (acc: { income: number; expense: number; savings: number }, item: FixedTransactionWithCategory) => {
       if (item.type === 'income') acc.income += item.amount;
+      else if (isSavingsItem(item)) acc.savings += item.amount;
       else acc.expense += item.amount;
       return acc;
     },
-    { income: 0, expense: 0 }
+    { income: 0, expense: 0, savings: 0 }
   );
+
+  // 섹션별 항목 분리
+  const incomeItems = recurringItems.filter((i: FixedTransactionWithCategory) => i.type === 'income');
+  const savingsItems = recurringItems.filter(isSavingsItem);
+  const expenseItems = recurringItems.filter(
+    (i: FixedTransactionWithCategory) => i.type === 'expense' && !isSavingsItem(i)
+  );
+
+  const onEditItem = (id: string, isInstallment: boolean) => {
+    if (isInstallment) {
+      router.push(`/installment/edit/${id}`);
+    } else {
+      router.push(`/recurring/edit/${id}`);
+    }
+  };
 
   return (
     <div className="min-h-dvh bg-background pb-20">
@@ -117,19 +145,33 @@ export default function RecurringPage() {
         {/* 요약 카드 */}
         <RecurringSummary stats={stats} />
 
-        {/* 목록 */}
-        <RecurringList
-          isLoading={isLoading}
-          items={recurringItems}
-          onEdit={(id, isInstallment) => {
-            if (isInstallment) {
-              router.push(`/installment/edit/${id}`);
-            } else {
-              router.push(`/recurring/edit/${id}`);
-            }
-          }}
-          onDelete={(id) => setDeleteId(id)}
-        />
+        {/* 목록: 수입 / 고정 지출 / 저축 3개 섹션 */}
+        {isLoading ? (
+          <RecurringList isLoading items={[]} onEdit={onEditItem} onDelete={() => {}} />
+        ) : recurringItems.length === 0 ? (
+          <RecurringList isLoading={false} items={[]} onEdit={onEditItem} onDelete={() => {}} />
+        ) : (
+          <div className="space-y-6">
+            {incomeItems.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-sm font-semibold text-muted-foreground ml-1">고정 수입</h2>
+                <RecurringList isLoading={false} items={incomeItems} onEdit={onEditItem} onDelete={(id) => setDeleteId(id)} />
+              </section>
+            )}
+            {expenseItems.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-sm font-semibold text-muted-foreground ml-1">고정 지출</h2>
+                <RecurringList isLoading={false} items={expenseItems} onEdit={onEditItem} onDelete={(id) => setDeleteId(id)} />
+              </section>
+            )}
+            {savingsItems.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-sm font-semibold text-muted-foreground ml-1">🏦 저축</h2>
+                <RecurringList isLoading={false} items={savingsItems} onEdit={onEditItem} onDelete={(id) => setDeleteId(id)} />
+              </section>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 삭제 확인 다이얼로그 */}

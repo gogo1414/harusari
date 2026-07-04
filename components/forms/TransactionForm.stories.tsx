@@ -37,6 +37,7 @@ const mockCategories = [
     is_default: false,
     created_at: new Date().toISOString(),
     sort_order: 0,
+    is_savings: false,
   },
   {
     category_id: '2',
@@ -47,6 +48,7 @@ const mockCategories = [
     is_default: false,
     created_at: new Date().toISOString(),
     sort_order: 1,
+    is_savings: false,
   },
   {
     category_id: '3',
@@ -57,6 +59,7 @@ const mockCategories = [
     is_default: false,
     created_at: new Date().toISOString(),
     sort_order: 2,
+    is_savings: false,
   },
   {
     category_id: '4',
@@ -67,6 +70,7 @@ const mockCategories = [
     is_default: false,
     created_at: new Date().toISOString(),
     sort_order: 3,
+    is_savings: false,
   },
   {
     category_id: '5',
@@ -77,6 +81,7 @@ const mockCategories = [
     is_default: false,
     created_at: new Date().toISOString(),
     sort_order: 4,
+    is_savings: false,
   },
   {
     category_id: '6',
@@ -87,6 +92,7 @@ const mockCategories = [
     is_default: false,
     created_at: new Date().toISOString(),
     sort_order: 5,
+    is_savings: false,
   },
   {
     category_id: '7',
@@ -97,6 +103,7 @@ const mockCategories = [
     is_default: false,
     created_at: new Date().toISOString(),
     sort_order: 6,
+    is_savings: false,
   },
 ];
 

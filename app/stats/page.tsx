@@ -16,6 +16,7 @@ import TrendChart from '@/components/charts/TrendChart';
 import StatsDateNavigator from '@/components/stats/StatsDateNavigator';
 import StatsTotalInsight from '@/components/stats/StatsTotalInsight';
 import { getCycleRange, filterByDateRange } from '@/lib/date';
+import { buildCategoryMap, isSavings, savingsRate } from '@/lib/savings';
 
 const INCOME_COLORS = [
   '#3182F6', // Blue (Toss)
@@ -89,7 +90,8 @@ export default function StatsPage() {
   const trendEnd = format(addMonths(currentDate, 2), 'yyyy-MM-dd');
   
   const { data: trendData = [], isLoading: isTrendLoading } = useQuery({
-    queryKey: ['transactions', 'trend', currentDate.getFullYear(), cycleStartDay],
+    // queryKey에 실제 조회 범위(trendStart/trendEnd)를 포함해야 같은 해 안에서 월 이동 시 refetch됨 (3-9)
+    queryKey: ['transactions', 'trend', trendStart, trendEnd, cycleStartDay],
     queryFn: async () => {
       const { data, error: userError } = await supabase.auth.getUser();
       if (userError || !data.user) throw new Error('Not authenticated');
@@ -108,25 +110,33 @@ export default function StatsPage() {
 
   const isLoading = isTransLoading || isTrendLoading;
 
-  // 통계 계산 로직 분리 및 네이밍 개선 
+  // 저축 판별용 카테고리 맵
+  const categoryMap = buildCategoryMap(categories);
+
+  // 통계 계산: 저축을 지출에서 분리. totalExpense는 '소비 지출'(저축 제외)로 재정의.
   const calculateStats = (transData: Transaction[]) => {
     const incomeByCat: Record<string, number> = {};
     const expenseByCat: Record<string, number> = {};
+    const savingsByCat: Record<string, number> = {};
     let totalIncome = 0;
     let totalExpense = 0;
+    let totalSavings = 0;
 
     transData.forEach((t) => {
       const catId = t.category_id || 'unknown';
       if (t.type === 'income') {
         incomeByCat[catId] = (incomeByCat[catId] || 0) + t.amount;
         totalIncome += t.amount;
+      } else if (isSavings(t, categoryMap)) {
+        savingsByCat[catId] = (savingsByCat[catId] || 0) + t.amount;
+        totalSavings += t.amount;
       } else {
         expenseByCat[catId] = (expenseByCat[catId] || 0) + t.amount;
         totalExpense += t.amount;
       }
     });
 
-    return { incomeByCat, expenseByCat, totalIncome, totalExpense };
+    return { incomeByCat, expenseByCat, savingsByCat, totalIncome, totalExpense, totalSavings };
   };
 
   const currentMonthTrans = filterByDateRange(transactions, currentCycle.start, currentCycle.end);
@@ -185,9 +195,13 @@ export default function StatsPage() {
 
   const incomeStats = processStats(currentStats.incomeByCat, INCOME_COLORS);
   const expenseStats = processStats(currentStats.expenseByCat, EXPENSE_COLORS);
+  const savingsStats = processStats(currentStats.savingsByCat, INCOME_COLORS);
 
   const expenseDiff = currentStats.totalExpense - lastStats.totalExpense;
   const incomeDiff = currentStats.totalIncome - lastStats.totalIncome;
+
+  // 저축률 = 저축 / 수입 (수입 0이면 null → 미표시)
+  const currentSavingsRate = savingsRate(currentStats.totalSavings, currentStats.totalIncome);
 
   // 수입/지출 추이 데이터 처리
   const monthlyTrendStats = Array.from({ length: 6 }, (_, i) => {
@@ -275,6 +289,30 @@ export default function StatsPage() {
               />
             </div>
             
+            {/* 저축 카드 (저축 카테고리 거래가 있을 때만) */}
+            {currentStats.totalSavings > 0 && (
+              <div className="bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary">
+                    <span className="text-lg">🏦</span>
+                  </div>
+                  <h3 className="text-xl font-bold tracking-tight">저축 내역</h3>
+                  {currentSavingsRate !== null && (
+                    <span className="ml-auto rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                      저축률 {(currentSavingsRate * 100).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+                <StatSection
+                  title="저축"
+                  stats={savingsStats}
+                  total={currentStats.totalSavings}
+                  type="income"
+                  diffAmount={0}
+                />
+              </div>
+            )}
+
             {/* 월별 추이 */}
             <div className="col-span-1 md:col-span-2 bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">
               <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
