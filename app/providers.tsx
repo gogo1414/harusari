@@ -5,6 +5,12 @@ import { useState } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 import { UserSettingsProvider } from '@/app/context/UserSettingsContext';
+import { useTrackInAppNavigation } from '@/hooks/useBackOrHome';
+
+function NavigationTracker() {
+  useTrackInAppNavigation();
+  return null;
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,6 +28,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <UserSettingsProvider>
+          <NavigationTracker />
           {children}
           <Toaster
             position="top-center"

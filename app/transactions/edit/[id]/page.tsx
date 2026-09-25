@@ -1,6 +1,7 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { createClient } from '@/lib/supabase/client';
@@ -12,7 +13,8 @@ import QueryErrorState from '@/components/common/QueryErrorState';
 import type { Category, Transaction } from '@/types/database';
 
 export default function EditTransactionPage() {
-  const router = useRouter();
+  // 딥링크로 바로 들어온 경우 router.back()은 앱 밖(about:blank)으로 나가므로 fallback 경로 사용
+  const goBack = useBackOrHome('/');
   const params = useParams();
   const id = params.id as string;
   const supabase = createClient();
@@ -64,7 +66,7 @@ export default function EditTransactionPage() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transaction', id] });
       showToast.success('내역이 수정되었습니다');
-      router.back();
+      goBack();
     },
     onError: (error) => {
       console.error(error);

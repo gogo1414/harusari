@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { showToast } from '@/lib/toast';
 import type { Category } from '@/types/database';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { addMonths, format, parseISO, isValid } from 'date-fns';
 import { createFixedWithBackfill } from '@/lib/recurring/client';
@@ -32,6 +33,8 @@ interface TransactionFormData {
 
 function NewTransactionContent() {
   const router = useRouter();
+  // 딥링크로 바로 들어온 경우 router.back()은 앱 밖(about:blank)으로 나가므로 fallback 경로 사용
+  const goBack = useBackOrHome('/');
   const supabase = createClient();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -125,7 +128,7 @@ function NewTransactionContent() {
       // 반복/할부는 fixed_transactions에도 insert하므로 목록 갱신 위해 함께 무효화 (3-7)
       queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
       showToast.transactionSaved();
-      router.back(); 
+      goBack();
       router.refresh(); 
     },
     onError: (error) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
@@ -10,7 +10,8 @@ import { createFixedWithBackfill } from '@/lib/recurring/client';
 import type { Category } from '@/types/database';
 
 export default function NewRecurringPage() {
-  const router = useRouter();
+  // 딥링크로 바로 들어온 경우 router.back()은 앱 밖(about:blank)으로 나가므로 fallback 경로 사용
+  const goBack = useBackOrHome('/recurring');
   const supabase = createClient();
   const queryClient = useQueryClient();
 
@@ -49,7 +50,7 @@ export default function NewRecurringPage() {
       // 백필로 transactions에 직접 insert하므로 홈 캘린더/합계 반영 위해 함께 무효화 (3-7)
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       showToast.success('고정 내역이 추가되었습니다');
-      router.back();
+      goBack();
     },
     onError: (error) => {
       console.error(error);
