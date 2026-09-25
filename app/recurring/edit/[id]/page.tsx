@@ -2,7 +2,9 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { getKstTodayStr } from '@/lib/kst';
+import { requestRecurringSync } from '@/lib/recurring/client';
 import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
 import { showToast } from '@/lib/toast';
@@ -43,26 +45,38 @@ export default function EditRecurringPage() {
   const updateMutation = useMutation({
     mutationFn: async (formData: TransactionFormData) => {
       const day = formData.date.getDate();
+      const endDate =
+        formData.end_type === 'date' && formData.end_date ? format(formData.end_date, 'yyyy-MM-dd') : null;
+      // 종료일을 미래로 늘리거나 없애면 다시 활성화 (엔진이 종료된 항목을 비활성화하므로)
+      const isActive = !endDate || endDate >= getKstTodayStr();
 
-            const { error } = await supabase
+      const { error } = await supabase
         .from('fixed_transactions')
-        // @ts-expect-error - Supabase update 타입 불일치
         .update({
           type: formData.type,
           day: day,
           amount: formData.amount,
           category_id: formData.category_id,
-          memo: formData.memo,
+          memo: formData.memo || null,
           end_type: formData.end_type,
-          end_date: formData.end_date ? format(formData.end_date, 'yyyy-MM-dd') : null,
-        })
+          end_date: endDate,
+          is_active: isActive,
+        } as never)
         .eq('fixed_transaction_id', id);
 
       if (error) throw error;
+
+      // 결제일 변경 등으로 이번 사이클에 새로 생길 회차가 있으면 즉시 반영 (실패해도 수정은 유지)
+      try {
+        await requestRecurringSync();
+      } catch (syncError) {
+        console.error('recurring sync after edit failed:', syncError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['fixed_transaction', id] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
       showToast.success('고정 내역이 수정되었습니다');
       router.back();
     },
@@ -98,7 +112,7 @@ export default function EditRecurringPage() {
     memo: fixedItem.memo || '',
     is_recurring: true,
     end_type: fixedItem.end_type || 'never',
-    end_date: fixedItem.end_date ? new Date(fixedItem.end_date) : undefined,
+    end_date: fixedItem.end_date ? parseISO(fixedItem.end_date) : undefined,
   };
 
   return (

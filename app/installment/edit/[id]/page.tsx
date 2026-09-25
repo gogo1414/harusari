@@ -9,6 +9,8 @@ import { Loader2 } from 'lucide-react';
 import type { Category, FixedTransaction } from '@/types/database';
 import { addMonths, subMonths, parseISO, setDate, format } from 'date-fns';
 import { getInstallmentAmountByCurrentMonth } from '@/lib/installment-logic';
+import { buildInstallmentMemo } from '@/lib/recurring/engine';
+import { requestRecurringSync } from '@/lib/recurring/client';
 import QueryErrorState from '@/components/common/QueryErrorState';
 
 // 원래 결제일(day)을 해당 월 말일로 클램프
@@ -55,10 +57,11 @@ export default function EditInstallmentPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const day = formData.date.getDate();
+      const startDate = format(formData.date, 'yyyy-MM-dd');
       const endDate = addMonths(formData.date, formData.months);
 
-      const currentMonth = installmentData?.installment_current_month || 1;
+      // 진행된 회차(0 = 아직 생성 전) 기준 현재 납입금
+      const currentMonth = installmentData?.installment_current_month ?? 0;
       const currentAmount = getInstallmentAmountByCurrentMonth({
         principal: formData.principal,
         months: formData.months,
@@ -69,25 +72,34 @@ export default function EditInstallmentPage() {
 
       const { error } = await supabase
         .from('fixed_transactions')
-        // @ts-expect-error - Supabase update 타입 불일치 (할부 필드)
         .update({
-          day: day,
+          day: formData.date.getDate(),
+          start_date: startDate,
           amount: currentAmount,
           category_id: formData.category_id,
-          memo: `${formData.memo} (할부 ${installmentData?.installment_current_month || 1}/${formData.months})`,
+          memo: buildInstallmentMemo(formData.memo, Math.max(currentMonth, 1), formData.months),
           end_date: format(endDate, 'yyyy-MM-dd'),
           installment_principal: formData.principal,
           installment_months: formData.months,
           installment_rate: formData.annualRate,
           installment_free_months: formData.interestFreeMonths,
-        })
+          // 개월 수를 늘려 남은 회차가 생기면 다시 활성화
+          is_active: formData.months > currentMonth,
+        } as never)
         .eq('fixed_transaction_id', id);
 
       if (error) throw error;
+
+      try {
+        await requestRecurringSync();
+      } catch (syncError) {
+        console.error('recurring sync after installment edit failed:', syncError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixed_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['installment', id] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
       showToast.success('할부 내역이 수정되었습니다');
       router.back();
     },
@@ -112,7 +124,9 @@ export default function EditInstallmentPage() {
   // 원래 결제 시작일 복원: end_date - months 로 역산하고, 결제일(day)을 말일 클램프해 맞춘다.
   // (초기값을 오늘로 두면 저장만 눌러도 결제일/종료일이 오늘 기준으로 왜곡되던 버그 수정)
   const months = installmentData.installment_months || 3;
-  const reconstructedStart = installmentData.end_date
+  const reconstructedStart = installmentData.start_date
+    ? parseISO(installmentData.start_date)
+    : installmentData.end_date
     ? clampDay(subMonths(parseISO(installmentData.end_date), months), installmentData.day)
     : clampDay(new Date(), installmentData.day);
 
@@ -132,7 +146,12 @@ export default function EditInstallmentPage() {
       categories={categories}
       onSubmit={async (data) => {
         // 이미 진행된 회차보다 개월 수를 줄이면 납부 이력과 어긋나므로 차단
-        const currentMonth = installmentData.installment_current_month || 1;
+        const currentMonth = installmentData.installment_current_month ?? 0;
+        // 이미 결제가 시작된 할부의 시작일을 옮기면 회차 번호가 어긋나므로 막는다
+        if (currentMonth > 0 && format(data.date, 'yyyy-MM-dd') !== format(reconstructedStart, 'yyyy-MM-dd')) {
+          showToast.error('이미 결제가 시작된 할부는 시작일을 바꿀 수 없어요');
+          return;
+        }
         if (data.months < currentMonth) {
           showToast.error(`이미 ${currentMonth}회차까지 진행되어 할부 개월 수를 ${currentMonth}개월 미만으로 줄일 수 없습니다`);
           return;
