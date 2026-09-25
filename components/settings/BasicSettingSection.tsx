@@ -8,28 +8,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useState } from 'react';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import { showToast } from '@/lib/toast';
 
-export default function BasicSettingSection() {
-  const { settings, updateSettings } = useUserSettings();
+type SavingField = 'cycle' | 'weekStart' | null;
 
-  const handleCycleChange = async (value: string) => {
+export default function BasicSettingSection() {
+  const { settings, updateSettings, isLoading } = useUserSettings();
+  // 저장 중에는 해당 Select를 비활성화해 연속 변경으로 인한 요청 경합을 막는다
+  const [savingField, setSavingField] = useState<SavingField>(null);
+  const isDisabled = isLoading || savingField !== null;
+
+  const save = async (field: Exclude<SavingField, null>, patch: Parameters<typeof updateSettings>[0]) => {
+    setSavingField(field);
     try {
-      await updateSettings({ salary_cycle_date: parseInt(value) });
+      await updateSettings(patch);
       showToast.success('설정이 저장되었습니다');
-    } catch {
-      showToast.error('설정 저장에 실패했습니다');
+    } catch (error) {
+      console.error('Settings save error:', error);
+      const message = error instanceof Error && error.message === '로그인이 필요합니다'
+        ? '로그인이 필요합니다. 다시 로그인해 주세요'
+        : '설정 저장에 실패했습니다';
+      showToast.error(message);
+    } finally {
+      setSavingField(null);
     }
   };
 
-  const handleWeekStartChange = async (value: string) => {
-    try {
-      await updateSettings({ week_start_day: value === '1' ? 1 : 0 });
-      showToast.success('설정이 저장되었습니다');
-    } catch {
-      showToast.error('설정 저장에 실패했습니다');
-    }
+  const handleCycleChange = (value: string) => {
+    const day = parseInt(value, 10);
+    if (!Number.isInteger(day) || day < 1 || day > 31) return;
+    void save('cycle', { salary_cycle_date: day });
+  };
+
+  const handleWeekStartChange = (value: string) => {
+    void save('weekStart', { week_start_day: value === '1' ? 1 : 0 });
   };
 
   return (
@@ -44,8 +58,9 @@ export default function BasicSettingSection() {
           <Select 
             value={settings?.salary_cycle_date?.toString() || '1'} 
             onValueChange={handleCycleChange}
+            disabled={isDisabled}
           >
-            <SelectTrigger className="w-[110px] h-9 rounded-full bg-muted/50 border-none font-semibold">
+            <SelectTrigger className="w-[110px] h-9 rounded-full bg-muted/50 border-none font-semibold" aria-busy={savingField === 'cycle'}>
               <SelectValue placeholder="날짜 선택" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
@@ -66,8 +81,9 @@ export default function BasicSettingSection() {
           <Select 
             value={settings?.week_start_day === 1 ? '1' : '0'} 
             onValueChange={handleWeekStartChange}
+            disabled={isDisabled}
           >
-            <SelectTrigger className="w-[110px] h-9 rounded-full bg-muted/50 border-none font-semibold">
+            <SelectTrigger className="w-[110px] h-9 rounded-full bg-muted/50 border-none font-semibold" aria-busy={savingField === 'weekStart'}>
               <SelectValue placeholder="요일 선택" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
