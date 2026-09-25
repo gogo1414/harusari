@@ -154,3 +154,6 @@ $function$;
 
 revoke execute on function public.reorder_categories(jsonb) from public, anon;
 grant execute on function public.reorder_categories(jsonb) to authenticated;
+
+-- RLS(categories_update)로 본인 행만 수정되므로 SECURITY DEFINER가 필요 없다 (advisor 0029)
+alter function public.reorder_categories(jsonb) security invoker;
