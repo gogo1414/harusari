@@ -1,7 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import webPush, { WebPushError } from 'web-push';
-import { getDate } from 'date-fns';
+import { getKstTodayStr } from '@/lib/kst';
+import { clampedDateStr } from '@/lib/recurring/engine';
 
 // Push Notification Payload Interface
 interface PushPayload {
@@ -68,15 +69,23 @@ export async function GET(request: Request) {
     }
 
     const supabase = createAdminClient();
-    const now = new Date();
-    const currentDay = getDate(now); // 1~31
+    // 서버 TZ(UTC)와 무관하게 KST 달력 날짜 기준으로 계산
+    const todayStr = getKstTodayStr();
+    const [todayY, todayM] = todayStr.split('-').map(Number);
 
-    // 1. 모든 구독 정보 가져오기
-    const { data: subscriptions, error: subError } = await supabase
-      .from('user_push_subscriptions')
-      .select('user_id, subscription');
-
-    if (subError) throw subError;
+    // 1. 모든 구독 정보 가져오기 (PostgREST 기본 1000행 제한 → 페이지 단위로)
+    const subscriptions: { user_id: string; subscription: unknown }[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error: subError } = await supabase
+        .from('user_push_subscriptions')
+        .select('user_id, subscription')
+        .order('id')
+        .range(from, from + 999);
+      if (subError) throw subError;
+      const page = (data || []) as { user_id: string; subscription: unknown }[];
+      subscriptions.push(...page);
+      if (page.length < 1000) break;
+    }
     if (!subscriptions || subscriptions.length === 0) {
       return NextResponse.json({ message: 'No subscriptions found' });
     }
@@ -98,15 +107,19 @@ export async function GET(request: Request) {
           };
         } 
         else if (type === 'morning') {
-          // 아침: 오늘 예정된 고정지출/할부 확인
-          const { data } = await supabase
-            .from('fixed_transactions')
-            .select('amount, memo, is_installment')
+          // 아침: 오늘 날짜로 생성된 고정지출/할부 거래 확인
+          // (고정 항목의 day로 찾으면 29~31일 말일 클램프·종료일·미래 시작을 반영하지 못함.
+          //  자동 생성 엔진이 만든 오늘자 거래가 곧 "오늘 나갈 돈"이다)
+          const { data, error: fixedError } = await supabase
+            .from('transactions')
+            .select('amount, memo')
             .eq('user_id', user_id)
-            .eq('day', currentDay)
-            .eq('is_active', true);
-            
-          const fixedList = data as unknown as { amount: number; memo: string | null; is_installment: boolean }[] | null;
+            .eq('date', todayStr)
+            .eq('type', 'expense')
+            .not('source_fixed_id', 'is', null);
+          if (fixedError) throw fixedError;
+
+          const fixedList = data as unknown as { amount: number; memo: string | null }[] | null;
 
           if (fixedList && fixedList.length > 0) {
             const totalAmount = fixedList.reduce((sum, item) => sum + item.amount, 0);
@@ -125,16 +138,13 @@ export async function GET(request: Request) {
         } 
         else if (type === 'evening') {
           // 저녁: 일일 브리핑 (수입/지출 요약)
-          // 1. 오늘 날짜 구하기 (KST 기준)
-          const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-          const todayStr = kstTime.toISOString().split('T')[0];
-          
-          // 2. 오늘의 수입/지출 내역 합산
-          const { data } = await supabase
+          // 오늘(KST)의 수입/지출 내역 합산
+          const { data, error: todayError } = await supabase
             .from('transactions')
             .select('amount, type')
             .eq('user_id', user_id)
             .eq('date', todayStr);
+          if (todayError) throw todayError;
 
           const transactions = data as unknown as { amount: number; type: string }[] | null;
           
@@ -181,20 +191,20 @@ export async function GET(request: Request) {
         }
         else if (type === 'monthly') {
           // 월간: 지난달 지출 분석 알림 (매월 1일 발송)
-          const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          const startStr = lastMonthDate.toISOString().split('T')[0];
-          const endDate = new Date(now.getFullYear(), now.getMonth(), 0); // 지난달 마지막 날
-          const endStr = endDate.toISOString().split('T')[0];
-          const monthLabel = `${lastMonthDate.getMonth() + 1}월`;
+          // 지난달 1일 ~ 말일 (문자열 계산: toISOString의 UTC 변환으로 하루 밀리던 문제 방지)
+          const startStr = clampedDateStr(todayY, todayM - 2, 1);
+          const endStr = clampedDateStr(todayY, todayM - 2, 31);
+          const monthLabel = `${Number(startStr.slice(5, 7))}월`;
 
           // 지난달 총 지출액 조회 (지출만, 수입 제외)
-          const { data } = await supabase
+          const { data, error: monthError } = await supabase
             .from('transactions')
             .select('amount, type')
             .eq('user_id', user_id)
             .gte('date', startStr)
             .lte('date', endStr)
             .eq('type', 'expense');
+          if (monthError) throw monthError;
 
           const expenses = data as unknown as { amount: number }[] | null;
           
@@ -228,8 +238,8 @@ export async function GET(request: Request) {
       } catch (err: unknown) {
         console.error(`Error sending to user ${user_id}:`, err);
         
-        // 구독 만료(410) 시 DB에서 삭제
-        if (err instanceof WebPushError && err.statusCode === 410) {
+        // 구독 만료(410)·없음(404) 시 DB에서 삭제
+        if (err instanceof WebPushError && (err.statusCode === 410 || err.statusCode === 404)) {
            await supabase
              .from('user_push_subscriptions')
              .delete()

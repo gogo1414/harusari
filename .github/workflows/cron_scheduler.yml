@@ -1,65 +1,49 @@
 name: Cron Scheduler
 
+# 실행 시각이 아니라 "어떤 스케줄이 트리거했는지(github.event.schedule)"로 작업을 고른다.
+# - GitHub 스케줄은 수십 분~수 시간 지연될 수 있어, 시각(hour) 창으로 판별하면 지연 시 그날 작업이 통째로 스킵됐다.
+# - 정각(:00)은 GitHub 혼잡 시간이라 분을 비껴서 예약한다.
+# - 고정지출 생성은 멱등이므로 하루 2회 호출해 한 번이 누락돼도 복구된다. (앱 진입 시 동기화도 별도로 동작)
 on:
   schedule:
-    # 1. 고정지출 생성: 매일 00:00 KST (15:00 UTC)
-    - cron: '0 15 * * *'
-    # 2. 아침 알림: 매일 09:00 KST (00:00 UTC)
-    - cron: '0 0 * * *'
-    # 3. 월간 분석: 매월 1일 10:00 KST (01:00 UTC)
-    - cron: '0 1 1 * *'
-    # 4. 저녁 알림: 매일 21:00 KST (12:00 UTC)
-    - cron: '0 12 * * *'
-  
-  # 수동 실행 가능
+    - cron: '7 15 * * *'   # 고정지출 생성: 00:07 KST
+    - cron: '7 21 * * *'   # 고정지출 생성 재시도: 06:07 KST
+    - cron: '13 0 * * *'   # 아침 알림: 09:13 KST
+    - cron: '17 1 1 * *'   # 월간 분석: 매월 1일 10:17 KST
+    - cron: '11 12 * * *'  # 저녁 알림: 21:11 KST
   workflow_dispatch:
+    inputs:
+      job:
+        description: '실행할 작업'
+        required: true
+        default: recurring
+        type: choice
+        options: [recurring, morning, evening, monthly]
 
 jobs:
   trigger-cron:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Call API Endpoints
+      - name: Call API Endpoint
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          MANUAL_JOB: ${{ github.event.inputs.job }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BASE_URL: https://harusari-liart.vercel.app
         run: |
-          # 현재 시간 (UTC)
-          CURRENT_HOUR=$(date -u +%H | sed 's/^0*//')  # 선행 0 제거
-          CURRENT_HOUR=${CURRENT_HOUR:-0}  # 빈 값이면 0
-          CURRENT_DAY=$(date -u +%d | sed 's/^0*//')
+          set -u
+          case "${MANUAL_JOB:-$SCHEDULE}" in
+            recurring|'7 15 * * *'|'7 21 * * *') PATH_Q='/api/cron/recurring' ;;
+            morning|'13 0 * * *')                PATH_Q='/api/push/send?type=morning' ;;
+            monthly|'17 1 1 * *')                PATH_Q='/api/push/send?type=monthly' ;;
+            evening|'11 12 * * *')               PATH_Q='/api/push/send?type=evening' ;;
+            *) echo "Unknown trigger: ${MANUAL_JOB:-$SCHEDULE}"; exit 1 ;;
+          esac
 
-          echo "Current UTC Hour: $CURRENT_HOUR"
-          echo "Current UTC Day: $CURRENT_DAY"
-
-          # 공통 헤더
-          AUTH_HEADER="Authorization: Bearer ${{ secrets.CRON_SECRET }}"
-          BASE_URL="https://harusari-liart.vercel.app"
-
-          # 1. 고정지출 생성 (15:00~16:59 UTC = 00:00~01:59 KST)
-          if [ "$CURRENT_HOUR" -ge 15 ] && [ "$CURRENT_HOUR" -lt 17 ]; then
-            echo "Triggering Recurring Transactions..."
-            curl -fsS -X GET "$BASE_URL/api/cron/recurring" \
-              -H "$AUTH_HEADER" \
-              -H "Content-Type: application/json"
-          fi
-
-          # 2. 아침 알림 (00:00~01:59 UTC = 09:00~10:59 KST)
-          if [ "$CURRENT_HOUR" -ge 0 ] && [ "$CURRENT_HOUR" -lt 2 ]; then
-            echo "Triggering Morning Push..."
-            curl -fsS -X GET "$BASE_URL/api/push/send?type=morning" \
-              -H "$AUTH_HEADER" \
-              -H "Content-Type: application/json"
-          fi
-
-          # 3. 월간 분석 (01:00~02:59 UTC, 1일 = 10:00~11:59 KST)
-          if [ "$CURRENT_HOUR" -ge 1 ] && [ "$CURRENT_HOUR" -lt 3 ] && [ "$CURRENT_DAY" -eq 1 ]; then
-            echo "Triggering Monthly Analysis Push..."
-            curl -fsS -X GET "$BASE_URL/api/push/send?type=monthly" \
-              -H "$AUTH_HEADER" \
-              -H "Content-Type: application/json"
-          fi
-
-          # 4. 저녁 알림 (12:00~13:59 UTC = 21:00~22:59 KST)
-          if [ "$CURRENT_HOUR" -ge 12 ] && [ "$CURRENT_HOUR" -lt 14 ]; then
-            echo "Triggering Evening Push..."
-            curl -fsS -X GET "$BASE_URL/api/push/send?type=evening" \
-              -H "$AUTH_HEADER" \
-              -H "Content-Type: application/json"
-          fi
+          echo "Calling $PATH_Q"
+          # 일시적 오류(콜드스타트 등)는 재시도, 최종 실패는 워크플로 실패로 표시(-f)
+          curl -fsS --retry 3 --retry-delay 20 --retry-all-errors --max-time 120 \
+            -X GET "$BASE_URL$PATH_Q" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json"
