@@ -9,18 +9,22 @@ import type { Transaction } from '@/types/database';
 import FAB from '@/components/common/FAB';
 import { createClient } from '@/lib/supabase/client';
 import { showToast } from '@/lib/toast';
+import { clearClientCaches } from '@/lib/logout';
 import { getCycleRange, filterByDateRange } from '@/lib/date';
 import HomeHeader from '@/components/dashboard/HomeHeader';
 import HomeCalendarSection from '@/components/dashboard/HomeCalendarSection';
 import HomeTransactionList from '@/components/dashboard/HomeTransactionList';
 import HomeDeleteDialog from '@/components/dashboard/HomeDeleteDialog';
 import QueryErrorState from '@/components/common/QueryErrorState';
+import { useRecurringAutoSync } from '@/hooks/useRecurringAutoSync';
 
 export default function HomePage() {
   const supabase = createClient();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { settings, categories } = useUserSettings();
+  const { settings, categories, isLoading: isSettingsLoading } = useUserSettings();
+  // cron 지연/누락 대비: 홈 진입 시 하루 1회 고정지출 동기화
+  useRecurringAutoSync(!isSettingsLoading);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -104,6 +108,8 @@ export default function HomePage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    // 이전 사용자의 캐시된 응답이 남지 않도록 Cache Storage 정리 (best-effort)
+    await clearClientCaches();
     window.location.href = '/login';
   };
 
