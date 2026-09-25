@@ -50,7 +50,12 @@ Supabase Auth → Middleware (세션 검증) → UserSettingsContext (전역 상
 ### 디렉토리 구조
 - `components/`: 프로젝트 전용 컴포넌트 (calendar, forms, dashboard, common 등 하위 폴더로 구성)
 - `app/context/`: React Context (UserSettingsContext - 설정 및 카테고리 전역 관리)
-- `app/api/cron/`: cron 진입 라우트. 실제 스케줄링은 GitHub Actions(`.github/workflows/cron_scheduler.yml`)가 담당하며 UTC 시간대별로 이 라우트를 호출 (고정 지출/수입 자동 생성, 푸시 알림). `vercel.json`은 미사용
+- `app/api/cron/`: cron 진입 라우트. 실제 스케줄링은 GitHub Actions(`.github/workflows/cron_scheduler.yml`)가 담당하며, 트리거된 스케줄(`github.event.schedule`)로 작업을 고른다 (고정 지출/수입 자동 생성 하루 2회, 푸시 알림). `vercel.json`은 미사용
+- `lib/recurring/`: 고정 지출/수입·할부 자동 생성 엔진. `engine.ts`(순수 함수: 달력 기준 결제일, 시작월 기준 할부 회차), `runner.ts`(cron·`/api/recurring/sync` 공용 실행기, upsert ON CONFLICT DO NOTHING으로 멱등), `client.ts`(등록 + 백필, 실패 시 보상 삭제). 홈 진입 시 하루 1회 동기화(`hooks/useRecurringAutoSync.ts`)로 cron 누락을 자가 복구
+- `lib/kst.ts`: 서버 TZ와 무관한 KST 오늘 날짜. 서버 코드에서 `new Date()` 로컬 getter·`toISOString()`으로 날짜를 만들지 말 것
+- `lib/ai/` + `app/api/ai/parse`: AI 빠른 입력(`/transactions/quick`). Gemini(`GEMINI_API_KEY`) 구조화 출력, 실패·미설정 시 규칙 기반 파서(`rule-parser.ts`)로 대체. 결과는 `normalize.ts`로 항상 검증
+- `lib/location/` + `app/api/location/{search,reverse}`: 거래 위치. 국내는 Kakao Local(`KAKAO_REST_API_KEY`, 선택), 해외·미설정 시 Photon(OSM). UI는 `components/location/LocationPicker.tsx`
+- `lib/stats/` + `components/map/`: 통계 파생 데이터(장소 집계·지역 요약·일별/요일별)와 Leaflet 지출 지도(클라이언트 전용 dynamic import)
 - `components/ui/`: Shadcn/ui 컴포넌트 (수정 시 주의)
 - `lib/supabase/`: Supabase 클라이언트 (client.ts: 브라우저용, server.ts: 서버 컴포넌트용, middleware.ts: 인증 처리)
 - `types/database.ts`: Supabase 테이블 타입 정의
@@ -60,8 +65,8 @@ Supabase Auth → Middleware (세션 검증) → UserSettingsContext (전역 상
 |-------|------|
 | `user_settings` | 급여일(cycle_start_day), 주 시작일 |
 | `categories` | 수입/지출 카테고리 (아이콘, 기본값 여부) |
-| `transactions` | 거래 내역 (금액, 날짜, 메모, 카테고리) |
-| `fixed_transactions` | 고정 지출/수입 (매월 자동 생성) |
+| `transactions` | 거래 내역 (금액, 날짜, 메모, 카테고리, 위치 place_name/latitude/longitude/country_code, input_source). (source_fixed_id, date) 유니크 |
+| `fixed_transactions` | 고정 지출/수입·할부 (start_date 기준 매월 자동 생성, last_generated 이후만 생성) |
 
 ### Provider 구조 (app/providers.tsx)
 ```
@@ -100,6 +105,10 @@ QueryClientProvider → ThemeProvider → UserSettingsProvider
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY  # Cron 작업용 (RLS 우회)
+CRON_SECRET                # cron 라우트 인증
+GEMINI_API_KEY, GEMINI_MODEL          # AI 빠른 입력 (선택)
+KAKAO_REST_API_KEY                    # 국내 장소 검색 (선택)
+NEXT_PUBLIC_MAP_TILE_URL_LIGHT/DARK   # 지도 타일 (선택)
 ```
 
 ### 클라이언트 사용
