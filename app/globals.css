@@ -168,3 +168,88 @@
 .recharts-layer:focus {
   outline: none !important;
 }
+
+/* ─── 통계 차트 팔레트 ─────────────────────────────────────────
+ * dataviz 검증 팔레트 (scripts/validate_palette.js):
+ *  - 범주형 6칸: 카드 표면 #FFFFFF(라이트) / #17171C(다크)에서 인접 CVD ΔE ≥ 8.4, 일반 시각 ΔE ≥ 19.3 통과
+ *  - 라이트의 3·4·5번은 대비 3:1 미만 → 범례에 금액·% 텍스트를 항상 함께 표시 (relief)
+ *  - 지도는 모든 쌍 비교 형태라 앞 3칸만 사용
+ *  - 수입/지출 2계열: 파랑/빨강 (CVD ΔE ≥ 19)
+ */
+:root {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+  --viz-5: #e87ba4;
+  --viz-6: #008300;
+  --viz-other: #b4b2aa;
+  --viz-income: #2a78d6;
+  --viz-expense: #e34948;
+  --viz-muted-bar: #c9d6e8;
+  --viz-grid: #eceef0;
+  --viz-axis: #d5d8dc;
+  --viz-ink-muted: #6b7684;
+}
+
+.dark {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-5: #d55181;
+  --viz-6: #008300;
+  --viz-other: #5f5e5a;
+  --viz-income: #3987e5;
+  --viz-expense: #e66767;
+  --viz-muted-bar: #2f3b4d;
+  --viz-grid: #26262d;
+  --viz-axis: #3a3a44;
+  --viz-ink-muted: #9aa3ae;
+}
+
+/* ─── 지출 지도 (Leaflet) ─────────────────────────────────────── */
+.spending-map.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--muted);
+}
+.spending-map .leaflet-control-attribution {
+  font-size: 10px;
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  color: var(--muted-foreground);
+}
+.spending-map .leaflet-control-attribution a {
+  color: inherit;
+}
+.spending-map .leaflet-control-zoom a {
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.spending-map .leaflet-tooltip {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.spending-map .leaflet-tooltip-top::before {
+  border-top-color: var(--popover);
+}
+.spending-map .spending-map-marker {
+  cursor: pointer;
+  transition: fill-opacity 150ms;
+}
+/* 기본(OSM) 타일 톤 다운: 데이터 점이 돋보이도록 채도↓, 다크 모드는 반전 */
+.spending-map--tone-light .leaflet-tile-pane {
+  filter: saturate(0.2) brightness(1.06) contrast(0.85);
+}
+.spending-map--tone-dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) saturate(0.1) brightness(0.8) contrast(0.85);
+}

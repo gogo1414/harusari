@@ -8,6 +8,9 @@ jest.mock('recharts', () => ({
   BarChart: ({ children }: React.PropsWithChildren) => <div data-testid="bar-chart">{children}</div>,
   Bar: () => <div data-testid="bar" />,
   XAxis: () => <div data-testid="xaxis" />,
+  YAxis: () => <div data-testid="yaxis" />,
+  CartesianGrid: () => <div data-testid="grid" />,
+  LabelList: () => null,
   Tooltip: () => <div data-testid="tooltip" />,
   Legend: () => <div data-testid="legend" />,
 }));

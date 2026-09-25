@@ -8,36 +8,35 @@ interface StatsDateNavigatorProps {
   onMonthChange: (delta: number) => void;
 }
 
-export default function StatsDateNavigator({
-  currentCycle,
-  onMonthChange,
-}: StatsDateNavigatorProps) {
+/** 급여 사이클 이동 (라벨 = 사이클 종료일이 속한 월) */
+export default function StatsDateNavigator({ currentCycle, onMonthChange }: StatsDateNavigatorProps) {
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="flex items-center gap-4 bg-secondary/30 rounded-full px-5 py-2 hover:bg-secondary/40 transition-colors">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => onMonthChange(-1)} 
-          className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h2 className="text-lg font-bold tabular-nums tracking-wide">
-          {format(currentCycle.end, 'yyyy년 M월', { locale: ko })}
-        </h2>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => onMonthChange(1)} 
-          className="h-8 w-8 rounded-full hover:bg-background/50 text-muted-foreground hover:text-foreground"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+    <div className="flex items-center justify-between gap-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onMonthChange(-1)}
+        aria-label="이전 사이클"
+        className="h-11 w-11 rounded-full text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </Button>
+      <div className="flex flex-col items-center" aria-live="polite">
+        <h2 className="text-lg font-bold tracking-tight">{format(currentCycle.end, 'yyyy년 M월', { locale: ko })}</h2>
+        <p className="text-xs font-medium tabular-nums text-muted-foreground">
+          {format(currentCycle.start, 'M.d', { locale: ko })} ({format(currentCycle.start, 'EEE', { locale: ko })}) ~{' '}
+          {format(currentCycle.end, 'M.d', { locale: ko })} ({format(currentCycle.end, 'EEE', { locale: ko })})
+        </p>
       </div>
-      <p className="text-xs text-muted-foreground font-medium">
-        ({format(currentCycle.start, 'M.d')} ~ {format(currentCycle.end, 'M.d')})
-      </p>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => onMonthChange(1)}
+        aria-label="다음 사이클"
+        className="h-11 w-11 rounded-full text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </Button>
     </div>
   );
 }

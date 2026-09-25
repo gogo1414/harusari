@@ -1,82 +1,146 @@
-
 'use client';
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { AXIS_TICK, ChartTooltipBox, GRID_STROKE } from '@/components/charts/ChartTooltip';
+import { formatCompactWon, formatWon } from '@/lib/stats/series';
 
 export interface TrendData {
   name: string;
   income: number;
   expense: number;
-  incomeLabel: string;
-  expenseLabel: string;
+  // 구버전 호환용 (사용하지 않음)
+  incomeLabel?: string;
+  expenseLabel?: string;
 }
 
 interface TrendChartProps {
   data: TrendData[];
 }
 
+const SERIES = [
+  { key: 'income', label: '수입', color: 'var(--viz-income)' },
+  { key: 'expense', label: '지출', color: 'var(--viz-expense)' },
+] as const;
+
+/**
+ * 최근 사이클 수입/지출 묶음 막대 (한 축).
+ * 범례 + 마지막(현재) 사이클에만 값 라벨, 나머지는 툴팁/표로 확인.
+ */
 export default function TrendChart({ data }: TrendChartProps) {
-  // Recharts labelFormatter 호환 타입
-  const formatBarLabel = (value: unknown) => {
-    const num = Number(value);
-    if (isNaN(num) || num === 0) return '';
-    if (num >= 10000) return `${(num / 10000).toFixed(1)}만`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}천`;
-    return new Intl.NumberFormat('ko-KR').format(num);
+  const hasData = data.some((item) => item.income > 0 || item.expense > 0);
+  const lastIndex = data.length - 1;
+
+  const lastLabel = (props: unknown) => {
+    const { x, y, width, value, index } = props as {
+      x?: number;
+      y?: number;
+      width?: number;
+      value?: number;
+      index?: number;
+    };
+    if (index !== lastIndex || !value || x === undefined || y === undefined) return null;
+    return (
+      <text
+        x={Number(x) + Number(width ?? 0) / 2}
+        y={Number(y) - 6}
+        textAnchor="middle"
+        fontSize={10}
+        fontWeight={700}
+        fill="var(--foreground)"
+      >
+        {formatCompactWon(Number(value))}
+      </text>
+    );
   };
 
-  const hasData = data.some(item => item.income > 0 || item.expense > 0);
-
   return (
-    <div className="h-[320px] w-full relative">
-      {!hasData && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/50 backdrop-blur-[1px] z-10 rounded-[32px]">
-          <span className="text-4xl grayscale opacity-30 mb-2">📊</span>
-          <span className="text-sm text-muted-foreground font-medium">내역 없음</span>
-        </div>
-      )}
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
-          <XAxis 
-            dataKey="name" 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fontSize: 12, fill: '#888' }} 
-            dy={8}
-            interval={0}
-          />
-          <Tooltip 
-            formatter={(value) => new Intl.NumberFormat('ko-KR').format(Number(value) || 0) + '원'}
-            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', padding: '12px 16px' }}
-            itemStyle={{ fontWeight: 'bold' }}
-            cursor={{ fill: 'rgba(0,0,0,0.03)', radius: 8 }}
-          />
-          <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-          <Bar 
-            dataKey="income" 
-            name="수입" 
-            fill="#3182F6" 
-            radius={[4, 4, 4, 4]} 
-            barSize={12}
-            label={{ position: 'top', formatter: formatBarLabel, fontSize: 10, fill: '#3182F6', dy: -5 }}
-          />
-          <Bar 
-            dataKey="expense" 
-            name="지출" 
-            fill="#F04452" 
-            radius={[4, 4, 4, 4]} 
-            barSize={12}
-            label={{ position: 'top', formatter: formatBarLabel, fontSize: 10, fill: '#F04452', dy: -5 }}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="flex flex-col gap-3">
+      {/* 범례 */}
+      <ul className="flex items-center gap-4 text-[13px] font-medium text-muted-foreground" aria-label="범례">
+        {SERIES.map((s) => (
+          <li key={s.key} className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: s.color }} />
+            {s.label}
+          </li>
+        ))}
+      </ul>
+
+      <div className="relative h-[220px] w-full">
+        {!hasData && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-card/60">
+            <span className="text-sm font-medium text-muted-foreground">내역 없음</span>
+          </div>
+        )}
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 20, right: 4, left: 0, bottom: 0 }} barGap={2} barCategoryGap="24%">
+            <CartesianGrid vertical={false} stroke={GRID_STROKE} />
+            <XAxis
+              dataKey="name"
+              axisLine={{ stroke: 'var(--viz-axis)' }}
+              tickLine={false}
+              tick={{ ...AXIS_TICK, fontSize: 12 }}
+              interval={0}
+              height={24}
+            />
+            <YAxis
+              width={40}
+              axisLine={false}
+              tickLine={false}
+              tick={AXIS_TICK}
+              tickCount={4}
+              allowDecimals={false}
+              tickFormatter={(v: number) => (v === 0 ? '0' : formatCompactWon(v))}
+            />
+            <Tooltip
+              cursor={{ fill: 'var(--viz-grid)' }}
+              content={({ active, payload, label }) => {
+                const row = active && payload?.[0] ? (payload[0].payload as TrendData) : null;
+                if (!row) return null;
+                return (
+                  <ChartTooltipBox
+                    title={String(label ?? row.name)}
+                    rows={SERIES.map((s) => ({ key: s.key, label: s.label, value: formatWon(row[s.key]), color: s.color }))}
+                    footer={`남은 돈 ${formatWon(row.income - row.expense)}`}
+                  />
+                );
+              }}
+            />
+            {SERIES.map((s) => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                name={s.label}
+                fill={s.color}
+                maxBarSize={14}
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              >
+                <LabelList dataKey={s.key} content={lastLabel} />
+              </Bar>
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <table className="sr-only">
+        <caption>사이클별 수입과 지출</caption>
+        <thead>
+          <tr>
+            <th scope="col">사이클</th>
+            <th scope="col">수입</th>
+            <th scope="col">지출</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.name}>
+              <th scope="row">{row.name}</th>
+              <td>{formatWon(row.income)}</td>
+              <td>{formatWon(row.expense)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

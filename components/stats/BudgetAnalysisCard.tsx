@@ -34,15 +34,12 @@ export default function BudgetAnalysisCard({ data, highlightCategoryId }: Budget
     }, [hasHighlight, highlightCategoryId]);
 
     return (
-        <div className="col-span-1 md:col-span-2 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-border/60 hover:shadow-lg transition-shadow duration-300">
-           <div className="flex items-center justify-between mb-6">
+        <section aria-labelledby="budget-analysis-title" className="col-span-1 md:col-span-2 bg-card rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40">
+           <div className="flex items-center justify-between mb-5">
              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-indigo-500/10 text-indigo-500">
-                    <span className="text-lg">🎯</span>
-                </div>
                 <div>
-                    <h3 className="text-xl font-bold tracking-tight">예산 분석</h3>
-                    <p className="text-sm text-muted-foreground">이번 달 목표 대비 지출 현황</p>
+                    <h2 id="budget-analysis-title" className="text-lg font-bold tracking-tight">예산 분석</h2>
+                    <p className="text-[13px] text-muted-foreground">사이클 목표 대비 지출 (고정 지출 제외)</p>
                 </div>
              </div>
            </div>
@@ -105,12 +102,12 @@ export default function BudgetAnalysisCard({ data, highlightCategoryId }: Budget
                    <Button 
                     variant="link" 
                     onClick={() => router.push('/budget-settings')}
-                    className="mt-2 text-primary"
+                    className="mt-2 h-11 text-primary"
                    >
                     예산 설정하러 가기
                    </Button>
                </div>
            )}
-        </div>
+        </section>
     );
 }
