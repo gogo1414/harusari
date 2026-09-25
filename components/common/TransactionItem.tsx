@@ -101,7 +101,7 @@ export default function TransactionItem({
             buttonSize,
             'text-muted-foreground/60 hover:text-primary hover:bg-primary/10 active:opacity-70 transition-colors'
           )}
-          aria-label="수정"
+          aria-label={`${transaction.memo || name} 수정`}
         >
           <Edit2 className={iconButtonSize} />
         </Button>
@@ -113,7 +113,7 @@ export default function TransactionItem({
             buttonSize,
             'text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 active:opacity-70 transition-colors'
           )}
-          aria-label="삭제"
+          aria-label={`${transaction.memo || name} 삭제`}
         >
           <Trash2 className={iconButtonSize} />
         </Button>

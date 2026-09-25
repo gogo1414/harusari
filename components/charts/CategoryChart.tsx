@@ -84,6 +84,9 @@ export default function CategoryChart({ stats, total, type, isIncome }: Category
       );
     }
 
+    // 항목이 하나뿐이면 비율 막대가 의미 없는 통짜 블록이 되므로 생략 (아래 목록에 100%로 표시됨)
+    if (stats.length === 1) return null;
+
     return (
       <div className="w-full flex h-12 rounded-xl overflow-hidden ring-1 ring-black/5">
         {stats.map((stat, index) => {

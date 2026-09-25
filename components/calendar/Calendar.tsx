@@ -129,7 +129,7 @@ export default function Calendar({
       {/* Header */}
       <div className="flex flex-col items-center py-2 mb-4">
         <div className="flex items-center justify-between w-full">
-          <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8 rounded-full hover:bg-muted" disabled={isPickerOpen}>
+          <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-11 w-11 rounded-full hover:bg-muted" disabled={isPickerOpen} aria-label="이전 사이클">
             <ChevronLeft className="h-5 w-5 text-muted-foreground" />
           </Button>
 
@@ -141,7 +141,7 @@ export default function Calendar({
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isPickerOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8 rounded-full hover:bg-muted" disabled={isPickerOpen}>
+          <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-11 w-11 rounded-full hover:bg-muted" disabled={isPickerOpen} aria-label="다음 사이클">
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </Button>
         </div>
@@ -155,11 +155,11 @@ export default function Calendar({
         <div className="bg-card z-10 flex flex-col animate-in fade-in zoom-in-95 duration-200 pb-4">
            {/* Year Picker Header */}
            <div className="flex items-center justify-center gap-4 py-3 mb-1">
-             <Button variant="ghost" size="icon" onClick={() => setPickerYear(pickerYear - 1)}>
+             <Button variant="ghost" size="icon" onClick={() => setPickerYear(pickerYear - 1)} aria-label="이전 해">
                <ChevronLeft className="h-5 w-5" />
              </Button>
              <span className="text-xl font-bold">{pickerYear}년</span>
-             <Button variant="ghost" size="icon" onClick={() => setPickerYear(pickerYear + 1)}>
+             <Button variant="ghost" size="icon" onClick={() => setPickerYear(pickerYear + 1)} aria-label="다음 해">
                <ChevronRight className="h-5 w-5" />
              </Button>
            </div>
