@@ -182,7 +182,7 @@ export default function HomePage() {
       ) : (
       <>
       <HomeCalendarSection
-        isLoading={isLoading}
+        isLoading={isLoading || isSettingsLoading}
         transactions={transactions}
         cycleTransactions={cycleTransactions}
         currentDate={currentMonth}

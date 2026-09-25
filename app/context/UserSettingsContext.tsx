@@ -112,7 +112,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     queryKey: ['user_settings', userId],
     queryFn: async () => {
       if (!userId) return DEFAULT_SETTINGS;
-      const { data, error } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
+      const { data, error } = await supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle();
       if (error && error.code !== 'PGRST116') throw error;
 
       if (!data) return DEFAULT_SETTINGS;

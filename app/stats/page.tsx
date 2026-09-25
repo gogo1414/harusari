@@ -86,7 +86,8 @@ function StatsPageContent() {
     if (parsed) setCurrentDate(parsed);
   }
 
-  const { settings } = useUserSettings();
+  // 설정(급여일) 로딩 전에는 기본값(1일) 사이클로 조회·표시하지 않는다 (잘못된 범위가 잠깐 보이던 문제)
+  const { settings, isLoading: isSettingsLoading } = useUserSettings();
   const { budgetGoals } = useBudgetGoals();
   const cycleStartDay = settings.salary_cycle_date || 1;
   const weekStartDay = settings.week_start_day ?? 0;
@@ -132,6 +133,7 @@ function StatsPageContent() {
   const trendQuery = useQuery({
     // queryKey에 실제 조회 범위(trendStart/trendEnd)를 포함해야 같은 해 안에서 월 이동 시 refetch됨 (3-9)
     queryKey: ['transactions', 'trend', trendStart, trendEnd, cycleStartDay],
+    enabled: !isSettingsLoading,
     queryFn: async () => {
       const { data, error: userError } = await supabase.auth.getUser();
       if (userError || !data.user) throw new Error('Not authenticated');
@@ -148,7 +150,7 @@ function StatsPageContent() {
     },
   });
   const trendData = useMemo(() => trendQuery.data ?? [], [trendQuery.data]);
-  const isLoading = trendQuery.isLoading;
+  const isLoading = isSettingsLoading || trendQuery.isPending;
   const isError = trendQuery.isError || categoriesQuery.isError;
 
   // 저축 판별용 카테고리 맵
