@@ -26,8 +26,11 @@ import DraftCard from '@/components/quick-add/DraftCard';
 
 const MAX_TEXT = 500;
 const EXAMPLES = ['삼각김밥 1400원', '어제 택시 12,300', '커피 4500, 점심 9천원', '월급 320만원 들어옴'];
-/** 상호 검색 결과를 개별 위치로 쓰는 최대 거리(m) */
-const PLACE_HINT_MAX_DISTANCE_M = 1500;
+/**
+ * 상호 검색 결과를 개별 위치로 쓰는 최대 거리(m).
+ * 멀리 있는 같은 이름 매장을 붙이면 틀린 기록이 되므로 걸어서 닿는 거리까지만 인정한다.
+ */
+const PLACE_HINT_MAX_DISTANCE_M = 500;
 
 async function requestParse(text: string, today: string): Promise<ParseResult> {
   const res = await fetch('/api/ai/parse', {
@@ -106,9 +109,9 @@ export default function QuickAddPage() {
       fetch(`/api/location/search?${params.toString()}`, { signal })
         .then((res) => (res.ok ? (res.json() as Promise<PlaceSearchResponse>) : null))
         .then((data) => {
-          const best = data?.results.find(
-            (r) => typeof r.distance === 'number' && r.distance <= PLACE_HINT_MAX_DISTANCE_M
-          );
+          const best = data?.results
+            .filter((r) => typeof r.distance === 'number' && r.distance <= PLACE_HINT_MAX_DISTANCE_M)
+            .sort((a, b) => (a.distance as number) - (b.distance as number))[0];
           if (!best) return;
           setDrafts((prev) =>
             prev.map((d) =>
@@ -193,7 +196,7 @@ export default function QuickAddPage() {
       </div>
 
       <div className="flex-1 space-y-5 px-5 pb-36 pt-4">
-        <section aria-labelledby="quick-input-label" className="space-y-3">
+        <section className="space-y-3">
           <label id="quick-input-label" htmlFor="quick-input" className="block text-[15px] font-bold text-foreground">
             쓴 돈을 그냥 적어주세요
           </label>
@@ -253,7 +256,7 @@ export default function QuickAddPage() {
         <section aria-label="위치" className="space-y-1">
           <LocationPicker value={sharedLocation} onChange={setSharedLocation} autoDetect />
           <p className="px-1 text-xs text-muted-foreground">
-            오늘 날짜 내역에만 붙어요. 상호를 적으면(예: 스벅) 근처 매장을 찾아 따로 붙여요.
+            오늘 지출 내역에만 붙어요. 상호를 적으면(예: 스벅) 가까운 매장을 찾아 따로 붙여요.
           </p>
         </section>
 

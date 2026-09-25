@@ -307,6 +307,12 @@ describe('parseWithRules — 분리', () => {
     expect(entries.map((e) => e.date)).toEqual(['2026-09-24', '2026-09-24']);
   });
 
+  it('쉼표로 나눈 항목은 날짜가 나온 항목부터 적용', () => {
+    expect(parse('스벅 아아 4500, 어제 택시 12300').map((e) => e.date)).toEqual(['2026-09-25', '2026-09-24']);
+    expect(parse('커피 4500 어제 택시 12300').map((e) => e.date)).toEqual(['2026-09-25', '2026-09-24']);
+    expect(parse('어제 택시 12300, 커피 4500').map((e) => e.date)).toEqual(['2026-09-24', '2026-09-24']);
+  });
+
   it('날짜만 적은 줄은 다음 줄들에 적용', () => {
     const entries = parse('어제\n치킨 2만\n커피 4800');
     expect(entries.map((e) => e.date)).toEqual(['2026-09-24', '2026-09-24']);

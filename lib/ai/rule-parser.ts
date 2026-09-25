@@ -730,12 +730,19 @@ export function parseWithRules(
 
     const chunks = segs.flatMap((sg) => splitChunks(masked, sg, sg.amounts));
 
-    // 날짜 결정: 줄에 날짜 표현이 하나면 모든 항목에 적용, 여럿이면 항목별(없으면 앞 항목 상속)
+    // 날짜 결정: 날짜 표현은 그것이 속한 항목부터 뒤 항목까지 적용한다.
+    //   '스벅 4500, 어제 택시 12300' → 스벅=오늘, 택시=어제
+    //   '어제 택시 12300, 커피 4500' → 둘 다 어제
+    // 줄 끝(마지막 금액 뒤)에 붙은 날짜 하나는 줄 전체에 적용: '편의점 3200 커피 4500 어제'
+    const inChunk = (d: DateSpan) => chunks.some((ch) => d.start >= ch.start && d.start < ch.end);
+    const lastAmountEnd = allAmounts.reduce((max, a) => Math.max(max, a.end), -1);
+    const lineWideDate =
+      dates.length === 1 && (!inChunk(dates[0]) || dates[0].start >= lastAmountEnd) ? dates[0] : null;
     let prevDate: DateSpan | null = null;
     const lineEntries: Record<string, unknown>[] = [];
     for (const ch of chunks) {
       const own = dates.find((d) => d.start >= ch.start && d.start < ch.end) ?? null;
-      const dateSpan: DateSpan | null = dates.length === 1 ? dates[0] : (own ?? prevDate);
+      const dateSpan: DateSpan | null = lineWideDate ?? own ?? prevDate;
       prevDate = dateSpan;
 
       const inner = allAmounts.filter((a) => a.start >= ch.start && a.end <= ch.end);

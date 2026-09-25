@@ -37,6 +37,7 @@ describe('quick-add drafts', () => {
     expect(resolveDraftLocation(d, here, '2026-09-25')).toEqual(here);
     expect(resolveDraftLocation({ ...d, date: '2026-09-24' }, here, '2026-09-25')).toBeNull();
     expect(resolveDraftLocation({ ...d, location: null }, here, '2026-09-25')).toBeNull();
+    expect(resolveDraftLocation({ ...d, type: 'income' }, here, '2026-09-25')).toBeNull();
     const own = { ...here, placeName: '스타벅스' };
     expect(resolveDraftLocation({ ...d, date: '2026-09-24', location: own }, here, '2026-09-25')).toEqual(own);
   });

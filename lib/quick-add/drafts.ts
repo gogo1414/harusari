@@ -52,7 +52,7 @@ export function validateDraft(draft: QuickDraft): string | null {
 
 /**
  * 초안에 적용될 위치.
- * 공통 위치(현재 GPS)는 "오늘" 내역에만 적용한다 — "어제 치킨"에 지금 위치를 붙이면 틀린 기록이 된다.
+ * 공통 위치(현재 GPS)는 "오늘"의 지출 내역에만 적용한다 — "어제 치킨"에 지금 위치를 붙이면 틀린 기록이 된다.
  */
 export function resolveDraftLocation(
   draft: QuickDraft,
@@ -60,6 +60,8 @@ export function resolveDraftLocation(
   today: string
 ): TransactionLocation | null {
   if (draft.location !== undefined) return draft.location;
+  // 수입(월급 등)은 장소 개념이 없다
+  if (draft.type === 'income') return null;
   if (draft.date !== today) return null;
   return sharedLocation ?? null;
 }
