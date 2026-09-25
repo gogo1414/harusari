@@ -18,6 +18,8 @@ interface CategoryDeleteDialogProps {
   categoryName?: string;
   // 이 카테고리를 참조하는 거래/고정내역 건수 (null이면 조회 중)
   usage: { transactions: number; fixed: number } | null;
+  // 사용 건수 조회 실패 여부
+  usageError?: boolean;
 }
 
 export default function CategoryDeleteDialog({
@@ -26,6 +28,7 @@ export default function CategoryDeleteDialog({
   onConfirm,
   categoryName,
   usage,
+  usageError = false,
 }: CategoryDeleteDialogProps) {
   const total = usage ? usage.transactions + usage.fixed : 0;
 
@@ -37,7 +40,9 @@ export default function CategoryDeleteDialog({
             {categoryName ? `'${categoryName}'을(를) 삭제할까요?` : '카테고리를 삭제할까요?'}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-muted-foreground mt-2">
-            {usage === null
+            {usageError
+              ? "사용 내역 확인 실패: 이 카테고리를 쓰는 거래가 있다면 삭제 후 '카테고리 없음'으로 남습니다."
+              : usage === null
               ? '사용 내역을 확인하는 중이에요...'
               : total > 0
                 ? `이 카테고리를 사용하는 거래 ${usage.transactions}건, 고정내역 ${usage.fixed}건이 있어요. 삭제하면 해당 내역은 '카테고리 없음'으로 남습니다.`

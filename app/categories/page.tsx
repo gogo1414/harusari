@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useBackOrHome } from '@/hooks/useBackOrHome';
 import { ChevronLeft, Plus, Trash2, Edit2, Loader2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -153,6 +153,9 @@ export default function CategoryManagementPage() {
   // 삭제 확인 다이얼로그 상태 (native confirm 대체) + 사용 건수 안내
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteUsage, setDeleteUsage] = useState<{ transactions: number; fixed: number } | null>(null);
+  const [deleteUsageError, setDeleteUsageError] = useState(false);
+  // 마지막으로 사용 건수를 요청한 카테고리 id (늦게 도착한 이전 응답 무시용)
+  const usageRequestIdRef = useRef<string | null>(null);
 
   // 카테고리 데이터 불러오기
   const { data, isLoading } = useQuery<Category[]>({
@@ -167,18 +170,12 @@ export default function CategoryManagementPage() {
     },
   });
 
-  // 로컬 상태로 정렬 순서 관리 (optimistic updates 위함)
-  // 서버 데이터와 로컬 오버라이드를 분리하여 파생 상태로 관리
-  const [localOrder, setLocalOrder] = useState<Category[] | null>(null);
-
-  const serverCategories = useMemo(() => {
+  // 화면에 보여줄 카테고리 목록.
+  // 순서 변경은 쿼리 캐시(['categories'])에 낙관적으로 반영하므로 별도 로컬 오버라이드 상태를 두지 않는다.
+  // (로컬 상태를 두면 이후 추가/삭제/수정이 화면에 반영되지 않는 문제가 있었음)
+  const orderedCategories = useMemo(() => {
     return data?.filter(c => c.type === type) || [];
   }, [data, type]);
-
-  // 화면에 보여줄 카테고리 목록
-  const orderedCategories = localOrder || serverCategories;
-
-
 
   // Dnd-kit 센서 설정
   const sensors = useSensors(
@@ -199,8 +196,11 @@ export default function CategoryManagementPage() {
   );
 
   // 순서 변경 Mutation
+  // scope: 같은 scope의 mutation은 직렬 실행되어 연속 드래그 시 요청 순서가 뒤바뀌지 않는다.
   const reorderMutation = useMutation({
-    mutationFn: async (newOrder: Category[]) => {
+    mutationKey: ['category-reorder'],
+    scope: { id: 'category-reorder' },
+    mutationFn: async ({ newOrder }: { newOrder: Category[]; previous: Category[] | undefined }) => {
       // RPC 호환을 위해 필요한 데이터만 추려서 전송
       const payload = newOrder.map((cat, index) => ({
         category_id: cat.category_id,
@@ -214,14 +214,18 @@ export default function CategoryManagementPage() {
 
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      // 낙관적 업데이트가 이미 화면에 반영되어 있으므로 토스트는 굳이 안 띄우거나 짧게 처리
-    },
-    onError: () => {
+    onError: (_error, { previous }) => {
       showToast.error('순서 저장에 실패했습니다. 다시 시도해주세요.');
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      setLocalOrder(null); // 실패 시 원복
+      // 뒤이은 순서 변경이 대기 중이 아니면 드래그 이전 상태로 롤백 (대기 중이면 onSettled 재조회로 서버 상태에 맞춘다)
+      if (previous && queryClient.isMutating({ mutationKey: ['category-reorder'] }) <= 1) {
+        queryClient.setQueryData<Category[]>(['categories'], previous);
+      }
+    },
+    onSettled: async () => {
+      // 마지막 순서 변경이 끝났을 때만 서버 상태로 동기화 (중간 재조회가 낙관적 순서를 덮어쓰지 않도록)
+      if (queryClient.isMutating({ mutationKey: ['category-reorder'] }) <= 1) {
+        await queryClient.invalidateQueries({ queryKey: ['categories'] });
+      }
     },
   });
 
@@ -311,13 +315,26 @@ export default function CategoryManagementPage() {
       const oldIndex = orderedCategories.findIndex((item) => item.category_id === active.id);
       const newIndex = orderedCategories.findIndex((item) => item.category_id === over.id);
       
-      const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
-      
-      // 로컬 상태 즉시 업데이트
-      setLocalOrder(newOrder);
-      
+      if (oldIndex < 0 || newIndex < 0) return;
+
+      const newOrder = arrayMove(orderedCategories, oldIndex, newIndex).map((cat, index) => ({
+        ...cat,
+        sort_order: index,
+      }));
+
+      // 진행 중인 조회가 낙관적 업데이트를 덮어쓰지 않도록 취소
+      void queryClient.cancelQueries({ queryKey: ['categories'] });
+      const previous = queryClient.getQueryData<Category[]>(['categories']);
+
+      // 캐시에 즉시 반영 (드롭 직후 원래 위치로 튀는 현상 방지). 다른 타입(수입/지출)은 그대로 유지.
+      const newOrderIds = new Set(newOrder.map((c) => c.category_id));
+      queryClient.setQueryData<Category[]>(['categories'], (old) => [
+        ...(old ?? []).filter((c) => !newOrderIds.has(c.category_id)),
+        ...newOrder,
+      ]);
+
       // 서버에 순서 업데이트 요청
-      reorderMutation.mutate(newOrder);
+      reorderMutation.mutate({ newOrder, previous });
     }
   };
 
@@ -338,30 +355,47 @@ export default function CategoryManagementPage() {
     if (!target) return;
     setDeleteTarget(target);
     setDeleteUsage(null); // 조회 중 표시
+    setDeleteUsageError(false);
+    usageRequestIdRef.current = id;
 
     (async () => {
-      const [txRes, fixedRes] = await Promise.all([
-        supabase
-          .from('transactions')
-          .select('*', { count: 'exact', head: true })
-          .eq('category_id', id),
-        supabase
-          .from('fixed_transactions')
-          .select('*', { count: 'exact', head: true })
-          .eq('category_id', id),
-      ]);
-      setDeleteUsage({
-        transactions: txRes.count ?? 0,
-        fixed: fixedRes.count ?? 0,
-      });
+      try {
+        const [txRes, fixedRes] = await Promise.all([
+          supabase
+            .from('transactions')
+            .select('*', { count: 'exact', head: true })
+            .eq('category_id', id),
+          supabase
+            .from('fixed_transactions')
+            .select('*', { count: 'exact', head: true })
+            .eq('category_id', id),
+        ]);
+        // 다른 카테고리로 다이얼로그가 바뀌었거나 닫힌 뒤 도착한 응답은 무시
+        if (usageRequestIdRef.current !== id) return;
+        if (txRes.error || fixedRes.error) throw txRes.error || fixedRes.error;
+        setDeleteUsage({
+          transactions: txRes.count ?? 0,
+          fixed: fixedRes.count ?? 0,
+        });
+      } catch (error) {
+        if (usageRequestIdRef.current !== id) return;
+        console.error('Category usage count error:', error);
+        setDeleteUsageError(true);
+      }
     })();
+  };
+
+  const closeDeleteDialog = () => {
+    usageRequestIdRef.current = null;
+    setDeleteTarget(null);
+    setDeleteUsage(null);
+    setDeleteUsageError(false);
   };
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate(deleteTarget.category_id);
-    setDeleteTarget(null);
-    setDeleteUsage(null);
+    closeDeleteDialog();
   };
 
   const isSaving = addMutation.isPending || updateMutation.isPending;
@@ -379,7 +413,6 @@ export default function CategoryManagementPage() {
         value={type}
         onValueChange={(v) => {
           setType(v as 'expense' | 'income');
-          setLocalOrder(null); // 탭 변경 시 정렬 순서 초기화
         }}
         className="mb-6 w-full"
       >
@@ -442,14 +475,12 @@ export default function CategoryManagementPage() {
       <CategoryDeleteDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-            setDeleteUsage(null);
-          }
+          if (!open) closeDeleteDialog();
         }}
         onConfirm={confirmDelete}
         categoryName={deleteTarget?.name}
         usage={deleteUsage}
+        usageError={deleteUsageError}
       />
     </div>
   );
