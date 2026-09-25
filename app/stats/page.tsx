@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useBackOrHome } from '@/hooks/useBackOrHome';
-import { format, addMonths, subMonths } from 'date-fns';
+import { format } from 'date-fns';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
@@ -15,7 +16,8 @@ import StatSection from '@/components/charts/StatSection';
 import TrendChart from '@/components/charts/TrendChart';
 import StatsDateNavigator from '@/components/stats/StatsDateNavigator';
 import StatsTotalInsight from '@/components/stats/StatsTotalInsight';
-import { getCycleRange, filterByDateRange } from '@/lib/date';
+import { filterByDateRange } from '@/lib/date';
+import { shiftCycle, getRecentCycleRanges, parseMonthParam } from '@/lib/cycle-nav';
 import { buildCategoryMap, isSavings, savingsRate } from '@/lib/savings';
 
 const INCOME_COLORS = [
@@ -35,21 +37,55 @@ const EXPENSE_COLORS = [
   '#64748B', // Slate
 ];
 
+// 월별 추이 차트에 표시할 사이클 수 (현재 사이클 포함)
+const TREND_CYCLE_COUNT = 6;
+
+// useSearchParams는 Suspense 경계가 필요하다 (Next 빌드 시 CSR bailout 에러 방지)
 export default function StatsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <StatsPageContent />
+    </Suspense>
+  );
+}
+
+function StatsPageContent() {
   const goBack = useBackOrHome();
   const supabase = createClient();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const searchParams = useSearchParams();
+
+  // ?month=yyyy-MM (월간 푸시 알림 링크): 해당 월의 사이클로 진입. 잘못된 값은 무시.
+  const monthParam = searchParams.get('month');
+  // ?category=<id> (DailySurvivalCard 링크): 예산 분석 카드에서 해당 카테고리를 강조
+  const categoryParam = searchParams.get('category');
+
+  const [currentDate, setCurrentDate] = useState(() => parseMonthParam(monthParam) ?? new Date());
+  // 같은 페이지에서 month 쿼리만 바뀌는 경우(알림 클릭 등)에도 반영 (렌더 중 상태 조정 패턴)
+  const [prevMonthParam, setPrevMonthParam] = useState(monthParam);
+  if (monthParam !== prevMonthParam) {
+    setPrevMonthParam(monthParam);
+    const parsed = parseMonthParam(monthParam);
+    if (parsed) setCurrentDate(parsed);
+  }
 
   const { settings } = useUserSettings();
   const { budgetGoals } = useBudgetGoals();
   const cycleStartDay = settings.salary_cycle_date || 1;
 
-  const currentCycle = getCycleRange(currentDate, cycleStartDay);
-  const lastCycle = getCycleRange(subMonths(currentCycle.start, 1), cycleStartDay);
+  // 최근 N개 사이클(과거→현재). addMonths/subMonths 대신 사이클 경계로 이동해
+  // 급여일 29/30/31일에서 사이클이 멈추거나 건너뛰지 않도록 한다.
+  const recentCycles = getRecentCycleRanges(currentDate, cycleStartDay, TREND_CYCLE_COUNT);
+  const currentCycle = recentCycles[recentCycles.length - 1];
+  const lastCycle = recentCycles[recentCycles.length - 2];
 
   const handleMonthChange = (delta: number) => {
-    const newBaseDate = addMonths(currentCycle.start, delta);
-    setCurrentDate(newBaseDate);
+    setCurrentDate(shiftCycle(currentDate, cycleStartDay, delta));
   };
 
   // 카테고리 데이터 조회
@@ -64,9 +100,10 @@ export default function StatsPage() {
 
   // 월별 추이 데이터 조회
   // (trend 범위가 현재/지난 사이클을 모두 포함하므로 별도의 stats 쿼리 없이 trendData를 재사용해 이중 페칭 제거)
-  const trendStart = format(subMonths(currentDate, 8), 'yyyy-MM-dd');
-  const trendEnd = format(addMonths(currentDate, 2), 'yyyy-MM-dd');
-  
+  // 조회 범위 = 추이 차트의 가장 오래된 사이클 시작 ~ 현재 사이클 종료
+  const trendStart = format(recentCycles[0].start, 'yyyy-MM-dd');
+  const trendEnd = format(currentCycle.end, 'yyyy-MM-dd');
+
   const { data: trendData = [], isLoading: isTrendLoading } = useQuery({
     // queryKey에 실제 조회 범위(trendStart/trendEnd)를 포함해야 같은 해 안에서 월 이동 시 refetch됨 (3-9)
     queryKey: ['transactions', 'trend', trendStart, trendEnd, cycleStartDay],
@@ -132,7 +169,8 @@ export default function StatsPage() {
             )
             .reduce((sum, t) => sum + t.amount, 0);
         
-        const percentage = (spent / goal.amount) * 100;
+        // 목표 금액이 0 이하인 비정상 데이터에서 NaN/Infinity% 방지
+        const percentage = goal.amount > 0 ? (spent / goal.amount) * 100 : spent > 0 ? 100 : 0;
         
         let status: 'safe' | 'warning' | 'danger' = 'safe';
         if (spent > goal.amount) status = 'danger';
@@ -182,10 +220,8 @@ export default function StatsPage() {
   const currentSavingsRate = savingsRate(currentStats.totalSavings, currentStats.totalIncome);
 
   // 수입/지출 추이 데이터 처리
-  const monthlyTrendStats = Array.from({ length: 6 }, (_, i) => {
-    const targetBaseDate = subMonths(currentCycle.start, 5 - i);
-    const { start: cycleStart, end: cycleEnd } = getCycleRange(targetBaseDate, cycleStartDay);
-    const labelDate = cycleEnd; 
+  const monthlyTrendStats = recentCycles.map(({ start: cycleStart, end: cycleEnd }) => {
+    const labelDate = cycleEnd;
     
     const monthTrans = filterByDateRange(trendData, cycleStart, cycleEnd);
     const income = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -231,7 +267,7 @@ export default function StatsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 fill-mode-backwards">
              {/* 예산 분석 카드 */}
-             <BudgetAnalysisCard data={budgetAnalysis} />
+             <BudgetAnalysisCard data={budgetAnalysis} highlightCategoryId={categoryParam} />
 
             {/* 지출 카드 */}
             <div className="bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border/40 hover:shadow-lg transition-shadow duration-300">

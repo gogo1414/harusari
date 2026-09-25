@@ -144,6 +144,47 @@ describe('Calendar Component', () => {
     });
   });
 
+  describe('이전/다음 버튼은 사이클 단위로 이동한다 (급여일 29/30/31 대응)', () => {
+    const getNavButtons = () => {
+      const buttons = screen.getAllByRole('button');
+      // 헤더의 첫 버튼 = 이전, 세 번째 버튼 = 다음 (가운데는 월 선택 토글)
+      return { prev: buttons[0], next: buttons[2] };
+    };
+
+    it('cycleStartDay=31, 1/31 사이클에서 다음을 누르면 2/28 시작 사이클로 이동', () => {
+      const onMonthChange = jest.fn();
+      render(
+        <Calendar
+          transactions={[]}
+          onDateSelect={mockOnDateSelect}
+          currentDate={new Date(2026, 0, 31)} // 사이클: 01/31~02/27
+          onMonthChange={onMonthChange}
+          cycleStartDay={31}
+        />
+      );
+      fireEvent.click(getNavButtons().next);
+      const next = onMonthChange.mock.calls[0][0] as Date;
+      expect(format(next, 'yyyy-MM-dd')).toBe('2026-02-28');
+    });
+
+    it('cycleStartDay=31, 3/31 사이클에서 이전을 누르면 2/28 시작 사이클로 이동', () => {
+      const onMonthChange = jest.fn();
+      render(
+        <Calendar
+          transactions={[]}
+          onDateSelect={mockOnDateSelect}
+          currentDate={new Date(2026, 2, 31)} // 사이클: 03/31~04/29
+          onMonthChange={onMonthChange}
+          cycleStartDay={31}
+        />
+      );
+      fireEvent.click(getNavButtons().prev);
+      const prev = onMonthChange.mock.calls[0][0] as Date;
+      // 이전 사이클(02/28~03/30)의 종료일
+      expect(format(prev, 'yyyy-MM-dd')).toBe('2026-03-30');
+    });
+  });
+
   it('displays income and expense amounts', () => {
     // 현재 구현에서는 수입/지출을 축약 금액 텍스트로 표시
     const { container } = render(

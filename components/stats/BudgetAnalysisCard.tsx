@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CategoryIcon } from '@/components/category/IconPicker';
@@ -16,10 +17,21 @@ export type BudgetAnalysisItem = {
 
 interface BudgetAnalysisCardProps {
     data: BudgetAnalysisItem[];
+    // 강조할 카테고리 (예: /stats?category=<id> 링크로 진입). 목록에 없으면 무시.
+    highlightCategoryId?: string | null;
 }
 
-export default function BudgetAnalysisCard({ data }: BudgetAnalysisCardProps) {
+export default function BudgetAnalysisCard({ data, highlightCategoryId }: BudgetAnalysisCardProps) {
     const router = useRouter();
+    const highlightRef = useRef<HTMLDivElement | null>(null);
+    const hasHighlight = !!highlightCategoryId && data.some((item) => item.category_id === highlightCategoryId);
+
+    // 강조 대상이 렌더되면 한 번 화면 안으로 스크롤
+    useEffect(() => {
+        if (hasHighlight) {
+            highlightRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+        }
+    }, [hasHighlight, highlightCategoryId]);
 
     return (
         <div className="col-span-1 md:col-span-2 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 bg-card rounded-[32px] p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-border/60 hover:shadow-lg transition-shadow duration-300">
@@ -38,8 +50,14 @@ export default function BudgetAnalysisCard({ data }: BudgetAnalysisCardProps) {
            {/* 예산 데이터가 있을 때만 표시 */}
            {data.length > 0 ? (
                <div className="space-y-6">
-                   {data.map((item) => (
-                       <div key={item.category_id} className="space-y-2">
+                   {data.map((item) => {
+                       const isHighlighted = hasHighlight && item.category_id === highlightCategoryId;
+                       return (
+                       <div
+                           key={item.category_id}
+                           ref={isHighlighted ? highlightRef : undefined}
+                           className={`space-y-2 ${isHighlighted ? '-m-3 p-3 rounded-2xl ring-2 ring-primary/60 bg-primary/5' : ''}`}
+                       >
                            <div className="flex justify-between items-center text-sm">
                                <div className="flex items-center gap-2">
                                    <div className="w-6 h-6 rounded-full bg-secondary/80 flex items-center justify-center p-1">
@@ -78,7 +96,8 @@ export default function BudgetAnalysisCard({ data }: BudgetAnalysisCardProps) {
                                />
                            </div>
                        </div>
-                   ))}
+                       );
+                   })}
                </div>
            ) : (
                <div className="text-center py-8 text-muted-foreground">

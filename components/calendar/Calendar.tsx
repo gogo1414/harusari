@@ -6,8 +6,7 @@ import {
   startOfWeek,
   endOfWeek,
   addDays,
-  addMonths,
-  subMonths,
+  subDays,
   isSameMonth,
   isSameDay,
   isToday,
@@ -105,8 +104,10 @@ export default function Calendar({
     return days;
   }, [weekStartDay]);
 
-  const goToPreviousMonth = () => onMonthChange(subMonths(currentDate, 1));
-  const goToNextMonth = () => onMonthChange(addMonths(currentDate, 1));
+  // 사이클 경계 기준으로 이동: addMonths(currentDate, ±1)는 급여일 29/30/31일에서
+  // 말일 클램프 때문에 같은 사이클에 머무르거나 사이클을 건너뛸 수 있다.
+  const goToPreviousMonth = () => onMonthChange(subDays(currentCycleStart, 1));
+  const goToNextMonth = () => onMonthChange(addDays(currentCycleEnd, 1));
   
   const handleMonthSelect = (monthIndex: number) => {
     let newDate = setYear(currentDate, pickerYear);
