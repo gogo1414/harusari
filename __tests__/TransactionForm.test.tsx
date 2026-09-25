@@ -212,6 +212,7 @@ const categories = [
     is_default: false,
     created_at: '2026-01-01',
     sort_order: 1,
+    is_savings: false,
   },
   {
     category_id: 'c-income',
@@ -222,6 +223,7 @@ const categories = [
     is_default: false,
     created_at: '2026-01-01',
     sort_order: 2,
+    is_savings: false,
   },
 ];
 
@@ -317,7 +319,7 @@ describe('TransactionForm', () => {
   });
 
   it('중복 클릭해도 제출은 1회만 수행된다', async () => {
-    let resolveSubmit: (() => void) | null = null;
+    let resolveSubmit: () => void = () => {};
     const onSubmit = jest.fn(
       () =>
         new Promise<void>((resolve) => {
@@ -337,6 +339,6 @@ describe('TransactionForm', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
 
-    resolveSubmit?.();
+    resolveSubmit();
   });
 });

@@ -74,6 +74,13 @@ export interface Database {
           memo: string | null;
           source_fixed_id: string | null;
           created_at: string;
+          // 2026-09 추가 컬럼 (기존 픽스처 호환을 위해 선택 속성)
+          place_name?: string | null;
+          place_address?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          country_code?: string | null;
+          input_source?: string | null;
         };
         Insert: {
           transaction_id?: string;
@@ -85,6 +92,12 @@ export interface Database {
           memo?: string | null;
           source_fixed_id?: string | null;
           created_at?: string;
+          place_name?: string | null;
+          place_address?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          country_code?: string | null;
+          input_source?: string | null;
         };
         Update: {
           amount?: number;
@@ -92,6 +105,12 @@ export interface Database {
           category_id?: string | null;
           date?: string;
           memo?: string | null;
+          place_name?: string | null;
+          place_address?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          country_code?: string | null;
+          input_source?: string | null;
         };
       };
       fixed_transactions: {
@@ -105,6 +124,7 @@ export interface Database {
           memo: string | null;
           end_type: 'never' | 'date';
           end_date: string | null;
+          start_date: string | null;
           last_generated: string | null;
           is_active: boolean;
           created_at: string;
@@ -126,6 +146,7 @@ export interface Database {
           memo?: string | null;
           end_type?: 'never' | 'date';
           end_date?: string | null;
+          start_date?: string | null;
           last_generated?: string | null;
           is_active?: boolean;
           created_at?: string;
@@ -145,6 +166,7 @@ export interface Database {
           memo?: string | null;
           end_type?: 'never' | 'date';
           end_date?: string | null;
+          start_date?: string | null;
           last_generated?: string | null;
           is_active?: boolean;
           // 할부 관련 필드
