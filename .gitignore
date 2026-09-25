@@ -62,3 +62,7 @@ public/fallback-*.js
 
 # Pencil 디자인 파일 (암호화 바이너리, 추적 제외)
 harusari.pen
+
+# E2E 산출물
+e2e/.results/
+e2e/.screens/
