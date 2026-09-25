@@ -125,6 +125,12 @@ export interface PlanOptions {
    * (사용자가 일부러 지운 과거 회차가 되살아나는 것 방지). 등록 시 백필은 생략.
    */
   floor?: string;
+  /**
+   * true면 last_generated와 무관하게 시작일부터 계산한다 (신규 등록 직후 백필).
+   * 등록과 동시에 다른 동기화가 먼저 last_generated를 올려도 과거 회차가 빠지지 않게 하며,
+   * 이미 있는 회차는 유니크 인덱스로 건너뛴다.
+   */
+  fromStart?: boolean;
 }
 
 /**
@@ -140,7 +146,7 @@ export function planRecurringGeneration(
 
   const day = Math.min(Math.max(item.day || 1, 1), 31);
   const startStr = resolveStartDate(item);
-  const fromCandidate = item.last_generated ? addOneDayStr(item.last_generated) : startStr;
+  const fromCandidate = item.last_generated && !options.fromStart ? addOneDayStr(item.last_generated) : startStr;
   let fromStr = fromCandidate > startStr ? fromCandidate : startStr;
   if (options.floor && options.floor > fromStr) fromStr = options.floor;
 
@@ -210,7 +216,8 @@ export function planRecurringGeneration(
   const update: FixedUpdate = {};
   if (rows.length > 0) {
     const last = rows[rows.length - 1];
-    update.last_generated = last.date;
+    // 백필(fromStart)로 과거만 채운 경우 last_generated를 뒤로 되돌리지 않는다
+    if (!item.last_generated || last.date > item.last_generated) update.last_generated = last.date;
     if (isInstallment) {
       update.installment_current_month = lastRound;
       update.amount = last.amount;

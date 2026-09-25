@@ -80,7 +80,7 @@ export async function syncRecurring(supabase: AnyClient, options: SyncOptions = 
 
     let plan;
     try {
-      plan = planRecurringGeneration(item, horizonEnd, { floor });
+      plan = planRecurringGeneration(item, horizonEnd, { floor, fromStart: mode === 'backfill' });
     } catch (error) {
       result.failures.push({
         fixedId: item.fixed_transaction_id,

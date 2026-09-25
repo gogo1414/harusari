@@ -103,6 +103,16 @@ describe('planRecurringGeneration: 일반 고정', () => {
     expect(plan.rows.map((r) => r.date)).toEqual(['2026-08-15', '2026-09-15']);
   });
 
+  test('fromStart: 다른 동기화가 먼저 last_generated를 올려도 백필은 시작일부터 채우고 last_generated는 되돌리지 않는다', () => {
+    const plan = planRecurringGeneration(
+      makeItem({ start_date: '2026-07-15', last_generated: '2026-09-15' }),
+      '2026-09-30',
+      { fromStart: true }
+    );
+    expect(plan.rows.map((r) => r.date)).toEqual(['2026-07-15', '2026-08-15', '2026-09-15']);
+    expect(plan.fixedUpdate).toBeNull();
+  });
+
   test('floor 이전 회차는 소급 생성하지 않는다', () => {
     const plan = planRecurringGeneration(makeItem({ last_generated: '2026-05-15' }), '2026-09-30', {
       floor: '2026-09-01',
