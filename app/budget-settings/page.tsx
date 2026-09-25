@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useBudgetGoals } from '@/hooks/useBudgetGoals';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
 import { showToast } from '@/lib/toast';
+import { validateAmount } from '@/lib/validation';
 
 import BudgetGoalItem from '@/components/budget/BudgetGoalItem';
 import BudgetFormDialog from '@/components/budget/BudgetFormDialog';
@@ -28,8 +29,10 @@ export default function BudgetSettingsPage() {
 
   const handleSubmit = () => {
     const val = parseInt(amount.replace(/,/g, ''), 10);
-    if (isNaN(val) || val < 0) {
-      showToast.error('유효한 금액을 입력해주세요');
+    // 0원 예산은 퍼센트 계산 시 NaN/Infinity를 유발하고, 10억 초과는 비현실적 값이므로 거래 금액과 동일 기준으로 검증
+    const amountError = validateAmount(val);
+    if (amountError) {
+      showToast.error(amountError);
       return;
     }
 

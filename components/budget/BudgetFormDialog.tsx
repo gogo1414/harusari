@@ -18,6 +18,10 @@ import CategorySelectDialog from '@/components/forms/transaction/CategorySelectD
 import type { Category } from '@/types/database';
 import type { BudgetGoalWithCategory } from '@/hooks/useBudgetGoals';
 import { showToast } from '@/lib/toast';
+import { validateAmount, MAX_TRANSACTION_AMOUNT } from '@/lib/validation';
+
+// 입력 자릿수 상한 (MAX_TRANSACTION_AMOUNT보다 한 자리 더 받아 초과 시 안내 문구를 보여준다)
+const MAX_AMOUNT_DIGITS = String(MAX_TRANSACTION_AMOUNT).length + 1;
 
 interface BudgetFormDialogProps {
   open: boolean;
@@ -48,9 +52,13 @@ export default function BudgetFormDialog({
 
   // 다른 금액 입력과 동일하게: 숫자만 허용 + 콤마 포맷 (부모가 제출 시 콤마 제거)
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/[^0-9]/g, '');
+    const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, MAX_AMOUNT_DIGITS);
     onChangeAmount(digits ? Number(digits).toLocaleString() : '');
   };
+
+  // 0원/상한 초과 금액은 저장 불가 (입력이 비어 있으면 안내하지 않음)
+  const rawAmount = amount ? parseInt(amount.replace(/,/g, ''), 10) : null;
+  const amountError = rawAmount !== null ? validateAmount(rawAmount) : null;
 
   // 현재 선택된 카테고리 객체
   const selectedCategoryObj = categories.find(c => c.category_id === selectedCategory);
@@ -124,13 +132,18 @@ export default function BudgetFormDialog({
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">원</span>
               </div>
+              {amountError && (
+                <p className="ml-1 text-xs font-medium text-destructive" role="alert">
+                  {amountError}
+                </p>
+              )}
             </div>
           </div>
 
           <DialogFooter className="mt-2">
             <Button
                 onClick={onSubmit}
-                disabled={!selectedCategory || !amount || isSaving}
+                disabled={!selectedCategory || !amount || !!amountError || isSaving}
                 className="h-14 rounded-2xl w-full text-lg font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.98]"
             >
               {isSaving ? '저장 중...' : '저장하기'}

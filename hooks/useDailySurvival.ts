@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { format, parseISO, startOfDay, differenceInCalendarDays } from 'date-fns';
 import type { Transaction } from '@/types/database';
 import type { BudgetGoalWithCategory } from '@/hooks/useBudgetGoals';
 
@@ -31,7 +32,9 @@ export function useDailySurvival({
         .reduce((sum, t) => sum + t.amount, 0);
 
       const remaining = goal.amount - spent;
-      const percentage = Math.min(100, Math.max(0, (spent / goal.amount) * 100));
+      // 목표 금액 0 이하(비정상 데이터)에서 NaN/Infinity 방지
+      const rawPercentage = goal.amount > 0 ? (spent / goal.amount) * 100 : spent > 0 ? 100 : 0;
+      const percentage = Math.min(100, Math.max(0, rawPercentage));
       
       // 상태 결정
       let status: 'safe' | 'warning' | 'danger' = 'safe';
@@ -60,6 +63,10 @@ export function useDailySurvival({
     };
   }, [budgetGoals, transactions]);
 
+  // 오늘 날짜 키: 자정이 지나 다시 렌더되면 값이 바뀌어 남은 일수가 재계산된다
+  // (useMemo 의존성에 없으면 앱을 켜둔 채 날짜가 바뀌어도 어제 기준 값이 유지됨)
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+
   // 2. 전체 생존 예산 계산 로직
   const { 
     dailyAvailable, 
@@ -80,13 +87,11 @@ export function useDailySurvival({
     }
 
     // 남은 일수 계산 (오늘 포함)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const end = new Date(cycleEndDate);
-    end.setHours(0, 0, 0, 0);
+    const today = parseISO(todayKey);
+    const end = startOfDay(cycleEndDate);
     // 과거 사이클 조회 시 Math.abs로 인해 남은 일수가 잘못 계산되던 문제 수정 (음수는 1로 클램프)
-    const diffTime = end.getTime() - today.getTime();
-    const daysLeft = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    // differenceInCalendarDays는 DST 등으로 하루 길이가 24h가 아닐 때도 달력 기준으로 계산한다
+    const daysLeft = Math.max(1, differenceInCalendarDays(end, today) + 1);
 
     // 남은 생활비
     const disposableBalance = budget - currentSpent;
@@ -97,7 +102,7 @@ export function useDailySurvival({
     // 전체 상태 결정
     let currentStatus: 'safe' | 'warning' | 'danger' = 'safe';
     if (daily <= 0) currentStatus = 'danger';
-    else if (daily < (budget / 30) * 0.5) currentStatus = 'warning';
+    else if (budget > 0 && daily < (budget / 30) * 0.5) currentStatus = 'warning';
 
     return {
       dailyAvailable: daily,
@@ -106,7 +111,7 @@ export function useDailySurvival({
       status: currentStatus,
       hasBudget: true
     };
-  }, [totalBudgetGoal, currentSpent, cycleEndDate]);
+  }, [totalBudgetGoal, currentSpent, cycleEndDate, todayKey]);
 
   return {
     totalBudgetGoal,

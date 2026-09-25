@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { parseISO } from 'date-fns';
 // import { format } from 'date-fns';
 // import { ko } from 'date-fns/locale';
 import { ChevronLeft } from 'lucide-react';
@@ -68,7 +69,13 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
 
   // 고정 지출 옵션
   const [endType, setEndType] = useState<'never' | 'date'>(initialData?.end_type || 'never');
-  const [endDate, setEndDate] = useState<Date | undefined>(initialData?.end_date ? new Date(initialData.end_date) : undefined);
+  // 'yyyy-MM-dd' 문자열은 new Date()가 UTC 자정으로 파싱해 음수 오프셋 시간대에서 하루 밀리므로 parseISO(로컬 자정) 사용
+  const [endDate, setEndDate] = useState<Date | undefined>(() => {
+    const raw = initialData?.end_date as Date | string | undefined;
+    if (!raw) return undefined;
+    const parsed = typeof raw === 'string' ? parseISO(raw) : new Date(raw.getTime());
+    return isNaN(parsed.getTime()) ? undefined : parsed;
+  });
 
   // 할부 관련 state
   const [paymentType, setPaymentType] = useState<'lumpsum' | 'installment'>(
@@ -88,12 +95,18 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
       })
     : null;
 
-  // initialDate 변경 시 state 업데이트 (useEffect 필요)
-  useEffect(() => {
-    if (initialDate) {
-      setDate(initialDate);
+  // initialDate가 '값'으로 바뀐 경우에만 날짜를 갱신한다 (렌더 중 상태 조정 패턴).
+  // 부모가 매 렌더마다 새 Date 객체를 넘기면 useEffect([initialDate])가 사용자가 고른 날짜를 계속 덮어쓰던 문제 방지.
+  // (Invalid Date의 NaN은 NaN !== NaN이라 무한 렌더를 유발하므로 undefined로 정규화)
+  const rawInitialTime = initialDate?.getTime();
+  const initialDateTime = rawInitialTime !== undefined && !isNaN(rawInitialTime) ? rawInitialTime : undefined;
+  const [prevInitialDateTime, setPrevInitialDateTime] = useState(initialDateTime);
+  if (initialDateTime !== prevInitialDateTime) {
+    setPrevInitialDateTime(initialDateTime);
+    if (initialDateTime !== undefined) {
+      setDate(new Date(initialDateTime));
     }
-  }, [initialDate]);
+  }
 
   // 카테고리 추가 로직
   const queryClient = useQueryClient();
@@ -130,6 +143,13 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsAddDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error('Category add error:', error);
+      const code = (error as { code?: string } | null)?.code;
+      showToast.error(
+        code === '23505' ? '이미 같은 이름의 카테고리가 있어요' : '카테고리 추가에 실패했습니다'
+      );
     },
   });
 
