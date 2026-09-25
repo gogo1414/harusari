@@ -2,12 +2,15 @@
 
 import { LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { clearClientCaches } from '@/lib/logout';
 
 export default function AccountSettingSection() {
   const supabase = createClient();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    // 이전 사용자의 캐시된 응답이 남지 않도록 Cache Storage 정리 (best-effort)
+    await clearClientCaches();
     window.location.href = '/login';
   };
 
