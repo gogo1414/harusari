@@ -11,6 +11,7 @@ import { validateAmount, validateInstallment } from '@/lib/validation';
 import { showToast } from '@/lib/toast';
 import { useBackOrHome } from '@/hooks/useBackOrHome';
 import type { Category } from '@/types/database';
+import type { TransactionLocation } from '@/lib/location/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 
@@ -25,6 +26,7 @@ import TransactionInstallmentOption from './transaction/TransactionInstallmentOp
 import TransactionRecurringOption from './transaction/TransactionRecurringOption';
 import TransactionDateInput from './transaction/TransactionDateInput';
 import TransactionSubmitButton from './transaction/TransactionSubmitButton';
+import LocationPicker from '@/components/location/LocationPicker';
 
 export interface TransactionFormData {
   type: 'income' | 'expense';
@@ -40,6 +42,8 @@ export interface TransactionFormData {
   installment_months?: number;
   installment_rate?: number;
   installment_free_months?: number;
+  // 위치 (undefined: 변경 없음, null: 위치 없음/삭제)
+  location?: TransactionLocation | null;
 }
 
 interface TransactionFormProps {
@@ -60,6 +64,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
   const [memo, setMemo] = useState(initialData?.memo || '');
   const [isRecurring, setIsRecurring] = useState(initialData?.is_recurring || false);
   const [isLoading, setIsLoading] = useState(false);
+  const [location, setLocation] = useState<TransactionLocation | null | undefined>(initialData?.location);
   const isSubmittingRef = useRef(false);
 
   // 금액에서 콤마 제거 후 숫자로 변환
@@ -161,6 +166,10 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
     });
   };
 
+  // 위치는 일반 거래에만 기록 (고정 내역/할부는 매 회차 장소가 달라 의미가 없음)
+  const isInstallment = type === 'expense' && paymentType === 'installment';
+  const showLocation = !isRecurring && !isInstallment;
+
   const filteredCategories = categories.filter((c) => c.type === type);
   const selectedCategory = categories.find((c) => c.category_id === categoryId);
 
@@ -211,6 +220,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
         installment_months: paymentType === 'installment' ? installmentMonths : undefined,
         installment_rate: paymentType === 'installment' ? annualRate : undefined,
         installment_free_months: paymentType === 'installment' ? interestFreeMonths : undefined,
+        location: showLocation ? location : undefined,
       });
     } catch (error) {
       console.error(error);
@@ -270,6 +280,15 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
         />
+
+        {/* 위치 (일반 거래만. 신규 입력 시 현재 위치 자동 추가) */}
+        {showLocation && (
+          <LocationPicker
+            value={location}
+            onChange={setLocation}
+            autoDetect={!isEditMode && !isRecurringFixed}
+          />
+        )}
 
         {/* 결제 방식 섹션 (지출이면서 신규 등록일 때만 표시)
             수정 화면에서는 update가 반복/할부 필드를 무시하므로 옵션을 숨긴다 (3-6) */}

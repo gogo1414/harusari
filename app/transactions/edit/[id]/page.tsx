@@ -2,10 +2,11 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { createClient } from '@/lib/supabase/client';
 import TransactionForm, { TransactionFormData } from '@/components/forms/TransactionForm';
 import { showToast } from '@/lib/toast';
+import { locationColumns, locationFromRow } from '@/lib/location/types';
 import { Loader2 } from 'lucide-react';
 import QueryErrorState from '@/components/common/QueryErrorState';
 import type { Category, Transaction } from '@/types/database';
@@ -44,16 +45,17 @@ export default function EditTransactionPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (formData: TransactionFormData) => {
-            const { error } = await supabase
+      const { error } = await supabase
         .from('transactions')
-        // @ts-expect-error - Supabase update 타입 불일치
         .update({
           type: formData.type,
           date: format(formData.date, 'yyyy-MM-dd'),
           amount: formData.amount,
           category_id: formData.category_id,
           memo: formData.memo,
-        })
+          // 위치: undefined면 기존 값 유지, null이면 삭제
+          ...locationColumns(formData.location),
+        } as never)
         .eq('transaction_id', id);
 
       if (error) throw error;
@@ -84,12 +86,14 @@ export default function EditTransactionPage() {
 
   const initialData: TransactionFormData = {
     type: transaction.type,
-    date: new Date(transaction.date),
+    // 'yyyy-MM-dd'를 new Date()로 파싱하면 UTC 자정이 되어 음수 오프셋 시간대에서 하루 밀리므로 parseISO(로컬 자정) 사용
+    date: parseISO(transaction.date),
     amount: transaction.amount,
     category_id: transaction.category_id || '',
     memo: transaction.memo || '',
     is_recurring: false, // 일반 수정에서는 false 처리
     end_type: 'never',
+    location: locationFromRow(transaction),
   };
 
   return (

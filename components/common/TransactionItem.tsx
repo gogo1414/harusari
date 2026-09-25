@@ -2,7 +2,7 @@
 
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, MapPin, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { CategoryIcon } from '@/components/category/IconPicker';
@@ -35,6 +35,7 @@ export default function TransactionItem({
   const category = categories.find((c) => c.category_id === transaction.category_id);
   const icon = category?.icon || 'money';
   const name = category?.name || '미분류';
+  const place = transaction.place_name || transaction.place_address || null;
 
   const iconSize = size === 'sm' ? 'h-9 w-9' : 'h-10 w-10 sm:h-11 sm:w-11';
   const textSize = size === 'sm' ? 'text-sm' : 'text-[15px] sm:text-[16px]';
@@ -62,6 +63,15 @@ export default function TransactionItem({
           <span>·</span>
           <span className="truncate">{name}</span>
         </div>
+        {place && (
+          <p className="mt-0.5 flex items-center gap-1 text-[11px] sm:text-xs text-muted-foreground/80 min-w-0">
+            <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              <span className="sr-only">위치: </span>
+              {place}
+            </span>
+          </p>
+        )}
       </div>
       <div className="text-right shrink-0">
         <span
