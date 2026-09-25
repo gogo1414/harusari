@@ -313,6 +313,11 @@ describe('parseWithRules — 분리', () => {
     expect(parse('어제 택시 12300, 커피 4500').map((e) => e.date)).toEqual(['2026-09-24', '2026-09-24']);
   });
 
+  it('defaultDate: 날짜 언급이 없는 항목만 기본 날짜, 상대 날짜는 오늘 기준', () => {
+    const entries = parseWithRules('커피 4500\n어제 택시 12300', CATEGORIES, '2026-09-25', { defaultDate: '2026-09-20' });
+    expect(entries.map((e) => e.date)).toEqual(['2026-09-20', '2026-09-24']);
+  });
+
   it('날짜만 적은 줄은 다음 줄들에 적용', () => {
     const entries = parse('어제\n치킨 2만\n커피 4800');
     expect(entries.map((e) => e.date)).toEqual(['2026-09-24', '2026-09-24']);

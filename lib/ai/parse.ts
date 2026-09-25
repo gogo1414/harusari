@@ -16,6 +16,8 @@ export const MISSING_AMOUNT_WARNING = '금액을 찾지 못한 항목이 있어�
 
 export interface ParseOptions {
   useGemini?: boolean;
+  /** 날짜 언급이 없는 항목의 날짜 (기본: today) */
+  defaultDate?: string;
 }
 
 /** Gemini 항목 중 카테고리가 비어 있으면 규칙 결과(같은 금액·유형)에서 채운다 */
@@ -49,7 +51,7 @@ export async function parseTransactionText(
   today: string,
   opts: ParseOptions = {}
 ): Promise<ParseResult> {
-  const ruleEntries = parseWithRules(text, categories, today);
+  const ruleEntries = parseWithRules(text, categories, today, { defaultDate: opts.defaultDate });
   const geminiEnabled = Boolean(process.env.GEMINI_API_KEY) && opts.useGemini !== false;
 
   if (!geminiEnabled) {
@@ -57,7 +59,7 @@ export async function parseTransactionText(
   }
 
   try {
-    const geminiEntries = await parseWithGemini(text, categories, today);
+    const geminiEntries = await parseWithGemini(text, categories, today, opts.defaultDate);
     if (geminiEntries.length === 0 && ruleEntries.length > 0) {
       return {
         engine: 'rules',

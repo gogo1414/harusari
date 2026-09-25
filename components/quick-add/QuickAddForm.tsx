@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Loader2, Sparkles, Wand2 } from 'lucide-react';
@@ -32,11 +32,11 @@ const EXAMPLES = ['삼각김밥 1400원', '어제 택시 12,300', '커피 4500, 
  */
 const PLACE_HINT_MAX_DISTANCE_M = 500;
 
-async function requestParse(text: string, today: string): Promise<ParseResult> {
+async function requestParse(text: string, today: string, defaultDate?: string): Promise<ParseResult> {
   const res = await fetch('/api/ai/parse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, today }),
+    body: JSON.stringify({ text, today, defaultDate }),
   });
   const isJson = (res.headers.get('content-type') ?? '').includes('application/json');
   const body = isJson ? await res.json().catch(() => null) : null;
@@ -46,7 +46,18 @@ async function requestParse(text: string, today: string): Promise<ParseResult> {
   return body as ParseResult;
 }
 
-export default function QuickAddPage() {
+interface QuickAddFormProps {
+  /** 헤더 가운데 영역 (입력 방식 전환 등). 없으면 제목 */
+  headerCenter?: ReactNode;
+  /**
+   * 날짜 언급이 없는 내역에 쓸 날짜 (yyyy-MM-dd). 캘린더에서 날짜를 고르고 들어온 경우.
+   * 없으면 오늘.
+   */
+  defaultDate?: string;
+}
+
+/** 문장으로 입력 ("삼각김밥 1400원") → 분석 → 확인 후 한 번에 저장 */
+export default function QuickAddForm({ headerCenter, defaultDate }: QuickAddFormProps) {
   const router = useRouter();
   const goBack = useBackOrHome();
   const supabase = createClient();
@@ -70,7 +81,7 @@ export default function QuickAddPage() {
   }, []);
 
   const parseMutation = useMutation({
-    mutationFn: (input: string) => requestParse(input, getKstTodayStr()),
+    mutationFn: (input: string) => requestParse(input, getKstTodayStr(), defaultDate),
     onSuccess: (result) => {
       if (result.entries.length === 0) {
         showToast.info('금액이 담긴 내역을 찾지 못했어요. 예) 삼각김밥 1400원');
@@ -191,7 +202,7 @@ export default function QuickAddPage() {
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
-        <span className="text-lg font-bold">빠른 입력</span>
+        {headerCenter ?? <span className="text-lg font-bold">문장으로 입력</span>}
         <div className="w-10" />
       </div>
 
@@ -218,7 +229,11 @@ export default function QuickAddPage() {
               className="w-full resize-none bg-transparent px-2 py-1 text-[17px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60"
             />
             <div className="flex items-center justify-between gap-2 pt-1">
-              <span className="pl-2 text-xs text-muted-foreground">여러 건은 줄바꿈·쉼표로 구분</span>
+              <span className="pl-2 text-xs text-muted-foreground">
+                {defaultDate && defaultDate !== today
+                  ? `날짜를 안 적으면 ${Number(defaultDate.slice(5, 7))}월 ${Number(defaultDate.slice(8, 10))}일로 기록`
+                  : '여러 건은 줄바꿈·쉼표로 구분'}
+              </span>
               <Button
                 type="button"
                 onClick={handleAnalyze}

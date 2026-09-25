@@ -8,7 +8,7 @@ import type { Category } from '@/types/database';
 
 /**
  * AI 빠른 입력: 자유 텍스트 → 거래 초안 (저장하지 않음, 사용자 확인용).
- * POST { text: string; today?: string } → ParseResult
+ * POST { text: string; today?: string; defaultDate?: string } → ParseResult
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => null)) as {
       text?: unknown;
       today?: unknown;
+      defaultDate?: unknown;
     } | null;
     const text = typeof body?.text === 'string' ? body.text.trim() : '';
     if (!text) {
@@ -81,6 +82,13 @@ export async function POST(request: Request) {
     }
 
     const today = resolveToday(body?.today);
+    // 캘린더에서 고른 날짜: 오늘 기준 400일 전 ~ 31일 후만 인정 (normalize 허용 범위와 동일)
+    const defaultDate =
+      isValidYmd(body?.defaultDate) &&
+      diffDays(body.defaultDate as string, today) >= -400 &&
+      diffDays(body.defaultDate as string, today) <= 31
+        ? (body.defaultDate as string)
+        : undefined;
 
     // RLS로 본인 카테고리만 조회된다
     const { data: rows, error: catError } = await supabase
@@ -101,7 +109,7 @@ export async function POST(request: Request) {
       type: r.type,
     }));
 
-    const result = await parseTransactionText(text, categories, today);
+    const result = await parseTransactionText(text, categories, today, { defaultDate });
     if (catError) {
       result.warnings.push('카테고리를 불러오지 못해 분류 없이 분석했어요');
     }

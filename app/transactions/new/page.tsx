@@ -11,7 +11,9 @@ import { addMonths, format, parseISO, isValid } from 'date-fns';
 import { createFixedWithBackfill } from '@/lib/recurring/client';
 import { locationColumns, type TransactionLocation } from '@/lib/location/types';
 import { Loader2 } from 'lucide-react';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
+import AddModeSwitch, { readSavedAddMode, saveAddMode, type AddMode } from '@/components/forms/AddModeSwitch';
+import QuickAddForm from '@/components/quick-add/QuickAddForm';
 
 
 interface TransactionFormData {
@@ -44,6 +46,22 @@ function NewTransactionContent() {
   // new Date('yyyy-MM-dd')는 UTC 자정으로 파싱돼 서쪽 시간대에서 하루 밀림 → parseISO(로컬 자정)
   const parsedDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? parseISO(dateParam) : null;
   const initialDate = parsedDate && isValid(parsedDate) ? parsedDate : undefined;
+
+  // 입력 방식: URL(?mode=) > 마지막으로 쓴 방식 > 문장으로 입력
+  // (useSearchParams 때문에 이 트리는 클라이언트에서만 렌더되므로 초기값에서 localStorage를 읽어도 하이드레이션 불일치가 없다)
+  const modeParam = searchParams.get('mode');
+  const [mode, setMode] = useState<AddMode>(() =>
+    modeParam === 'quick' || modeParam === 'manual' ? modeParam : (readSavedAddMode() ?? 'quick')
+  );
+  const handleModeChange = (next: AddMode) => {
+    setMode(next);
+    saveAddMode(next);
+    // 새로고침·뒤로가기에도 같은 방식이 유지되도록 URL에 반영 (히스토리는 늘리지 않음)
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('mode', next);
+    router.replace(`/transactions/new?${params.toString()}`, { scroll: false });
+  };
+  const modeSwitch = <AddModeSwitch value={mode} onChange={handleModeChange} />;
 
   // 카테고리 로드
   const { data: categories = [], isLoading } = useQuery({
@@ -145,12 +163,17 @@ function NewTransactionContent() {
     );
   }
 
+  if (mode === 'quick') {
+    return <QuickAddForm headerCenter={modeSwitch} defaultDate={initialDate ? format(initialDate, 'yyyy-MM-dd') : undefined} />;
+  }
+
   return (
     <div className="min-h-dvh bg-background pb-8">
-      <TransactionForm 
-        categories={categories} 
+      <TransactionForm
+        categories={categories}
         onSubmit={async (data) => await mutation.mutateAsync(data)}
         initialDate={initialDate}
+        headerCenter={modeSwitch}
       />
     </div>
   );

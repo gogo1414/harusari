@@ -75,7 +75,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await authedPage.getByRole('button', { name: '분석', exact: true }).click();
     await expect(authedPage.getByRole('listitem', { name: /번째 내역/ })).toHaveCount(3);
     await shot('03-quick');
-    await authedPage.goto('/transactions/new');
+    await authedPage.goto('/transactions/new?mode=manual');
     await authedPage.getByPlaceholder('0').first().fill('4800');
     await shot('04-new');
     await authedPage.goto('/recurring');

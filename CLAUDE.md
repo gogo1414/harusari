@@ -53,7 +53,7 @@ Supabase Auth → Middleware (세션 검증) → UserSettingsContext (전역 상
 - `app/api/cron/`: cron 진입 라우트. 실제 스케줄링은 GitHub Actions(`.github/workflows/cron_scheduler.yml`)가 담당하며, 트리거된 스케줄(`github.event.schedule`)로 작업을 고른다 (고정 지출/수입 자동 생성 하루 2회, 푸시 알림). `vercel.json`은 미사용
 - `lib/recurring/`: 고정 지출/수입·할부 자동 생성 엔진. `engine.ts`(순수 함수: 달력 기준 결제일, 시작월 기준 할부 회차), `runner.ts`(cron·`/api/recurring/sync` 공용 실행기, upsert ON CONFLICT DO NOTHING으로 멱등), `client.ts`(등록 + 백필, 실패 시 보상 삭제). 홈 진입 시 하루 1회 동기화(`hooks/useRecurringAutoSync.ts`)로 cron 누락을 자가 복구
 - `lib/kst.ts`: 서버 TZ와 무관한 KST 오늘 날짜. 서버 코드에서 `new Date()` 로컬 getter·`toISOString()`으로 날짜를 만들지 말 것
-- `lib/ai/` + `app/api/ai/parse`: AI 빠른 입력(`/transactions/quick`). Gemini(`GEMINI_API_KEY`) 구조화 출력, 실패·미설정 시 규칙 기반 파서(`rule-parser.ts`)로 대체. 결과는 `normalize.ts`로 항상 검증
+- `lib/ai/` + `app/api/ai/parse`: AI 빠른 입력(`/transactions/new`의 "문장으로" 모드, 예전 `/transactions/quick`은 리다이렉트). Gemini(`GEMINI_API_KEY`) 구조화 출력, 실패·미설정 시 규칙 기반 파서(`rule-parser.ts`)로 대체. 결과는 `normalize.ts`로 항상 검증
 - `lib/location/` + `app/api/location/{search,reverse}`: 거래 위치. 국내는 Kakao Local(`KAKAO_REST_API_KEY`, 선택), 해외·미설정 시 Photon(OSM). UI는 `components/location/LocationPicker.tsx`
 - `lib/stats/` + `components/map/`: 통계 파생 데이터(장소 집계·지역 요약·일별/요일별)와 Leaflet 지출 지도(클라이언트 전용 dynamic import)
 - `components/ui/`: Shadcn/ui 컴포넌트 (수정 시 주의)

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, type ReactNode } from 'react';
 import { parseISO } from 'date-fns';
 // import { format } from 'date-fns';
 // import { ko } from 'date-fns/locale';
@@ -53,9 +53,11 @@ interface TransactionFormProps {
   initialData?: TransactionFormData;
   isEditMode?: boolean;
   isRecurringFixed?: boolean;
+  /** 헤더 가운데 영역 (입력 방식 전환 등). 없으면 제목 */
+  headerCenter?: ReactNode;
 }
 
-export default function TransactionForm({ categories, onSubmit, initialDate, initialData, isEditMode = false, isRecurringFixed = false }: TransactionFormProps) {
+export default function TransactionForm({ categories, onSubmit, initialDate, initialData, isEditMode = false, isRecurringFixed = false, headerCenter }: TransactionFormProps) {
   const goBack = useBackOrHome();
   const [type, setType] = useState<'expense' | 'income'>(initialData?.type || 'expense');
   const [date, setDate] = useState<Date>(initialData?.date || initialDate || new Date());
@@ -245,7 +247,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
         <Button variant="ghost" size="icon" onClick={goBack} aria-label="뒤로 가기" className="-ml-2 rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/10">
           <ChevronLeft className="h-6 w-6" />
         </Button>
-        <span className="text-lg font-bold">{isEditMode ? '내역 수정' : '새로운 내역'}</span>
+        {headerCenter ?? <span className="text-lg font-bold">{isEditMode ? '내역 수정' : '새로운 내역'}</span>}
         <div className="w-10" />
       </div>
 

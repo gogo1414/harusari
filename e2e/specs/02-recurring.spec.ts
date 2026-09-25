@@ -91,7 +91,7 @@ test.describe('고정지출·할부 자동 생성', () => {
     await seedCategories(admin, user.id);
     const startDate = addMonthsYmd(today, -2, 10);
 
-    await authedPage.goto(`/transactions/new?date=${startDate}`);
+    await authedPage.goto(`/transactions/new?mode=manual&date=${startDate}`);
     await authedPage.getByPlaceholder('0').first().fill('13500');
     await authedPage.getByRole('button', { name: /카테고리 선택/ }).click();
     await authedPage.getByRole('button', { name: '주거/통신' }).click();
@@ -115,7 +115,7 @@ test.describe('고정지출·할부 자동 생성', () => {
     await seedCategories(admin, user.id);
     const startDate = addMonthsYmd(today, -2, 12);
 
-    await authedPage.goto(`/transactions/new?date=${startDate}`);
+    await authedPage.goto(`/transactions/new?mode=manual&date=${startDate}`);
     await authedPage.getByPlaceholder('0').first().fill('100000');
     await authedPage.getByRole('button', { name: /카테고리 선택/ }).click();
     await authedPage.getByRole('button', { name: '쇼핑' }).click();

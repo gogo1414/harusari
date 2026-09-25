@@ -95,7 +95,8 @@ export function buildResponseSchema(categories: CategoryOption[]) {
 }
 
 /** 시스템 프롬프트 (기준일·카테고리 목록 포함) */
-export function buildSystemPrompt(categories: CategoryOption[], today: string): string {
+export function buildSystemPrompt(categories: CategoryOption[], today: string, defaultDate?: string): string {
+  const fallbackDate = defaultDate ?? today;
   const weekday = WEEKDAY_KO[weekdayOf(today)];
   const yesterday = addDays(today, -1);
   const categoryJson = JSON.stringify(
@@ -106,6 +107,7 @@ export function buildSystemPrompt(categories: CategoryOption[], today: string): 
 
 ## 기준 정보
 - 오늘(한국 시간): ${today} (${weekday}요일)
+- 날짜 언급이 없을 때 쓸 날짜: ${fallbackDate}
 - 사용자 카테고리 목록(JSON): ${categoryJson}
 
 ## 규칙
@@ -115,7 +117,7 @@ export function buildSystemPrompt(categories: CategoryOption[], today: string): 
 4. 외화(엔, 달러, $, 유로, 위안 등)는 환산하지 않는다: amount=null, currency=ISO 코드(JPY, USD, EUR, CNY …), originalAmount=외화 금액. 원화면 currency="KRW", originalAmount=null.
 5. type: 월급·급여·용돈 받음·환불·입금·들어옴·이자·보너스·캐시백·판매 등 돈이 들어온 경우 "income", 그 외는 "expense".
 6. categoryId는 반드시 위 목록의 id 중 type이 같은 것만 고른다. 확실하지 않으면 null. 목록에 없는 id를 만들지 않는다. categoryName은 고른 카테고리의 name 그대로.
-7. date는 yyyy-MM-dd. 오늘 기준으로 상대 날짜를 해석한다(어제=${yesterday}, 그제, N일 전, 지난주 X요일, X요일=오늘 포함 가장 최근 그 요일, 9/3, 9월 3일). 날짜 언급이 없으면 오늘. 명시적 날짜가 아니면 미래 날짜를 만들지 않는다.
+7. date는 yyyy-MM-dd. 오늘 기준으로 상대 날짜를 해석한다(어제=${yesterday}, 그제, N일 전, 지난주 X요일, X요일=오늘 포함 가장 최근 그 요일, 9/3, 9월 3일). 날짜 언급이 없으면 "날짜 언급이 없을 때 쓸 날짜"를 쓴다. 명시적 날짜가 아니면 미래 날짜를 만들지 않는다.
 8. memo는 품목 위주의 짧은 내용(예: "삼각김밥", "점심 김치찌개"). 금액·날짜 표현과 "들어옴/받음/결제" 같은 군더더기는 뺀다. 50자 이내.
 9. placeHint는 상호/브랜드가 언급된 경우 정식 이름(예: 스벅→"스타벅스", "GS칼텍스"), 없으면 null.
 10. confidence는 0~1 사이로, 금액·카테고리가 모두 확실하면 0.9 이상, 추측이 많으면 낮게.
@@ -211,7 +213,8 @@ export function extractJson(data: GeminiResponse): unknown {
 export async function parseWithGemini(
   text: string,
   categories: CategoryOption[],
-  today: string
+  today: string,
+  defaultDate?: string
 ): Promise<ParsedEntry[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new GeminiError('GEMINI_API_KEY missing');
@@ -219,7 +222,7 @@ export async function parseWithGemini(
   if (!/^[a-z0-9.\-]+$/i.test(model)) throw new GeminiError('invalid model name');
 
   const body = {
-    systemInstruction: { parts: [{ text: buildSystemPrompt(categories, today) }] },
+    systemInstruction: { parts: [{ text: buildSystemPrompt(categories, today, defaultDate) }] },
     contents: [{ role: 'user', parts: [{ text: wrapUserInput(text) }] }],
     generationConfig: buildGenerationConfig(model, categories),
   };

@@ -675,11 +675,18 @@ function computeConfidence(opts: {
  * @param categories 사용자 카테고리 목록
  * @param today 기준일 (KST, yyyy-MM-dd)
  */
+export interface RuleParseOptions {
+  /** 날짜 언급이 없는 항목의 날짜 (기본: today). 상대 날짜(어제 등)는 항상 today 기준 */
+  defaultDate?: string;
+}
+
 export function parseWithRules(
   text: string,
   categories: CategoryOption[],
-  today: string
+  today: string,
+  options: RuleParseOptions = {}
 ): ParsedEntry[] {
+  const fallbackDate = options.defaultDate ?? today;
   const input = (text || '')
     .normalize('NFKC')
     .replace(ZERO_WIDTH_RE, '')
@@ -757,7 +764,7 @@ export function parseWithRules(
       const cat = matchCategory(body, type, categories);
       const memo = memoCore || brand?.name || cat?.category.name || '';
       const foreign = ch.amount !== null && ch.amount.currency !== 'KRW';
-      const date = dateSpan?.date ?? carryDate ?? today;
+      const date = dateSpan?.date ?? carryDate ?? fallbackDate;
 
       lineEntries.push({
         amount: ch.amount && !foreign ? Math.round(ch.amount.value) : null,

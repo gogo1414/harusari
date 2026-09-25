@@ -8,8 +8,10 @@ test.describe('AI 빠른 입력과 위치', () => {
     const yesterday = kstToday(-1);
 
     await authedPage.goto('/');
-    await authedPage.getByRole('button', { name: /빠른 입력/ }).click();
-    await expect(authedPage).toHaveURL(/\/transactions\/quick/);
+    await authedPage.getByRole('button', { name: '새 내역 추가' }).click();
+    await expect(authedPage).toHaveURL(/\/transactions\/new/);
+    // 처음 쓰는 사용자는 '문장으로' 입력이 기본
+    await expect(authedPage.getByRole('radio', { name: '문장으로' })).toHaveAttribute('aria-checked', 'true');
 
     // 위치 자동 추가(강남역 좌표 → 주변 장소/주소)
     await expect(authedPage.getByText('위치 확인 중').first()).toBeHidden({ timeout: 20_000 });
@@ -42,7 +44,9 @@ test.describe('AI 빠른 입력과 위치', () => {
 
   test('카테고리를 못 고르면 저장 전에 알려준다', async ({ authedPage, admin, user }) => {
     await seedCategories(admin, user.id);
+    // 예전 주소는 합쳐진 입력 화면(문장 모드)으로 이동
     await authedPage.goto('/transactions/quick');
+    await expect(authedPage).toHaveURL(/\/transactions\/new\?mode=quick/);
     await authedPage.getByLabel('쓴 돈을 그냥 적어주세요').fill('뭔가 777원');
     await authedPage.getByRole('button', { name: '분석', exact: true }).click();
     await expect(authedPage.getByRole('listitem', { name: /번째 내역/ })).toHaveCount(1);
@@ -60,6 +64,8 @@ test.describe('AI 빠른 입력과 위치', () => {
   test('일반 입력: 위치 자동 추가 → 수정 화면에서 위치 삭제', async ({ authedPage, admin, user }) => {
     await seedCategories(admin, user.id);
     await authedPage.goto('/transactions/new');
+    await authedPage.getByRole('radio', { name: '직접 입력' }).click();
+    await expect(authedPage).toHaveURL(/mode=manual/);
     await authedPage.getByPlaceholder('0').first().fill('4800');
     await authedPage.getByRole('button', { name: /카테고리 선택/ }).click();
     await authedPage.getByRole('button', { name: '카페' }).click();
@@ -83,5 +89,23 @@ test.describe('AI 빠른 입력과 위치', () => {
     await expect.poll(async () => (await transactionsOf(admin, user.id))[0].latitude).toBeNull();
     [row] = await transactionsOf(admin, user.id);
     expect(row).toMatchObject({ amount: 4800, memo: '라떼' });
+  });
+
+  test('입력 방식은 마지막 선택을 기억하고, 캘린더에서 고른 날짜가 문장 입력의 기본 날짜가 된다', async ({ authedPage, admin, user }) => {
+    await seedCategories(admin, user.id);
+    await authedPage.goto('/transactions/new');
+    await authedPage.getByRole('radio', { name: '직접 입력' }).click();
+    await expect(authedPage.getByPlaceholder('어떤 내역인가요?')).toBeVisible();
+    await authedPage.goto('/transactions/new');
+    await expect(authedPage.getByRole('radio', { name: '직접 입력' })).toHaveAttribute('aria-checked', 'true');
+
+    const picked = kstToday(-5);
+    await authedPage.goto(`/transactions/new?date=${picked}`);
+    await authedPage.getByRole('radio', { name: '문장으로' }).click();
+    await expect(authedPage).toHaveURL(new RegExp(`date=${picked}`));
+    await authedPage.getByLabel('쓴 돈을 그냥 적어주세요').fill('커피 4500\n어제 택시 12300');
+    await authedPage.getByRole('button', { name: '분석', exact: true }).click();
+    await expect(authedPage.getByLabel('1번째 내역 날짜')).toHaveValue(picked);
+    await expect(authedPage.getByLabel('2번째 내역 날짜')).toHaveValue(kstToday(-1));
   });
 });
