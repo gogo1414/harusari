@@ -14,6 +14,7 @@ import {
   type GeoCoords,
 } from '@/hooks/useGeolocation';
 import type { TransactionLocation } from '@/lib/location/types';
+import { readAutoLocationPref, writeAutoLocationPref } from '@/lib/location/autoLocationPref';
 import {
   formatDistance,
   toTransactionLocation,
@@ -23,8 +24,6 @@ import {
   type ReverseGeocodeResponse,
 } from '@/lib/location/place';
 
-/** 자동 위치 추가 사용자 설정 (localStorage, 'off'면 끔) */
-export const AUTO_LOCATION_PREF_KEY = 'harusari:auto-location';
 /** 이 거리(m) 안의 가장 가까운 장소를 자동 선택 */
 const AUTO_PLACE_MAX_DISTANCE_M = 40;
 /** GPS 오차가 이보다 크면 장소 대신 주소만 자동 선택 */
@@ -34,22 +33,6 @@ const SEARCH_MIN_LENGTH = 2;
 const SEARCH_MAX_LENGTH = 60;
 const DENIED_MESSAGE = '위치 권한이 꺼져 있어요. 장소를 검색해 추가할 수 있어요';
 const FETCH_ERROR_MESSAGE = '장소 정보를 불러오지 못했어요';
-
-export function readAutoLocationPref(): boolean {
-  try {
-    return window.localStorage.getItem(AUTO_LOCATION_PREF_KEY) !== 'off';
-  } catch {
-    return true;
-  }
-}
-
-function writeAutoLocationPref(on: boolean) {
-  try {
-    window.localStorage.setItem(AUTO_LOCATION_PREF_KEY, on ? 'on' : 'off');
-  } catch {
-    // 사생활 보호 모드 등 저장 불가 → 이번 화면에서만 반영
-  }
-}
 
 /** 같은 출처 API 호출. 비로그인 리다이렉트(HTML) 등 JSON이 아닌 응답도 에러로 처리 */
 async function fetchLocationApi<T>(url: string, signal: AbortSignal): Promise<T> {
@@ -125,7 +108,7 @@ const IDLE_SEARCH: SearchState = { status: 'idle', results: [], provider: null }
 interface LocationPickerProps {
   value: TransactionLocation | null | undefined;
   onChange: (loc: TransactionLocation | null) => void;
-  /** 마운트 시 값이 없으면 현재 위치를 자동으로 채운다 (신규 입력용) */
+  /** 신규 입력용. 사용자가 자동 추가를 켰을 때만 마운트 시 현재 위치를 채운다 (기본은 수동 선택) */
   autoDetect?: boolean;
   className?: string;
 }
@@ -206,7 +189,7 @@ export default function LocationPicker({
     }
   }, [request]);
 
-  // 신규 입력: 마운트 시 1회 현재 위치 자동 추가
+  // 신규 입력: 자동 추가 설정이 켜져 있을 때만 마운트 시 1회 현재 위치 채우기
   useEffect(() => {
     if (!autoDetect || valueRef.current !== undefined) return;
     if (!hasGeolocation() || !readAutoLocationPref()) return;

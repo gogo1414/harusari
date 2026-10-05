@@ -283,7 +283,7 @@ export default function TransactionForm({ categories, onSubmit, initialDate, ini
           onChange={(e) => setMemo(e.target.value)}
         />
 
-        {/* 위치 (일반 거래만. 신규 입력 시 현재 위치 자동 추가) */}
+        {/* 위치 (일반 거래만. 기본은 수동 선택, 설정에서 켜면 신규 입력 시 자동 추가) */}
         {showLocation && (
           <LocationPicker
             value={location}

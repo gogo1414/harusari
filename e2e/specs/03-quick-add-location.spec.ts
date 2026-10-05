@@ -2,6 +2,13 @@ import { test, expect, kstToday } from '../support/fixtures';
 import { seedCategories, transactionsOf } from '../support/db';
 
 test.describe('AI 빠른 입력과 위치', () => {
+  // 현재 위치 자동 추가는 기본 꺼짐 → 이 스펙에서는 켠 상태로 검증
+  test.beforeEach(async ({ authedPage }) => {
+    await authedPage.addInitScript(() => {
+      window.localStorage.setItem('harusari:auto-location', 'on');
+    });
+  });
+
   test('문장으로 여러 건 입력 → 확인 → 저장, 오늘 내역에만 현재 위치', async ({ authedPage, admin, user }) => {
     const cats = await seedCategories(admin, user.id);
     const today = kstToday();

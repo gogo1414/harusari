@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import NotificationSettingSection from '@/components/settings/NotificationSettingSection';
 import ThemeSettingSection from '@/components/settings/ThemeSettingSection';
 import BasicSettingSection from '@/components/settings/BasicSettingSection';
+import LocationSettingSection from '@/components/settings/LocationSettingSection';
 
 import AccountSettingSection from '@/components/settings/AccountSettingSection';
 import { useUserSettings } from '@/app/context/UserSettingsContext';
@@ -44,6 +45,9 @@ export default function SettingsPage() {
 
         {/* 앱 설정 */}
         <BasicSettingSection />
+
+        {/* 위치 설정 */}
+        <LocationSettingSection />
 
         {/* 알림 설정 */}
         <NotificationSettingSection />

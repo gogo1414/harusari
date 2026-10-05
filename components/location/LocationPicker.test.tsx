@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LocationPicker, { pickAutoLocation } from './LocationPicker';
 
 describe('LocationPicker', () => {
@@ -99,5 +99,40 @@ describe('pickAutoLocation', () => {
       lng: 127.03,
       countryCode: null,
     });
+  });
+});
+
+describe('자동 위치 추가 기본값', () => {
+  const getCurrentPosition = jest.fn();
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    getCurrentPosition.mockReset();
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition },
+    });
+  });
+
+  afterEach(() => {
+    // 다른 테스트는 geolocation이 없는 환경을 가정
+    delete (navigator as unknown as { geolocation?: unknown }).geolocation;
+  });
+
+  it('설정을 켜지 않았으면 현재 위치를 요청하지 않는다', async () => {
+    const onChange = jest.fn();
+    render(<LocationPicker value={undefined} onChange={onChange} autoDetect />);
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /위치 추가/ })).toBeInTheDocument();
+  });
+
+  it('설정을 켜면 마운트 시 현재 위치를 요청한다', async () => {
+    window.localStorage.setItem('harusari:auto-location', 'on');
+    render(<LocationPicker value={undefined} onChange={jest.fn()} autoDetect />);
+
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalled());
   });
 });
